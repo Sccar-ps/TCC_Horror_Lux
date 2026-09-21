@@ -72,3 +72,12 @@ Plugins/**/Intermediate/*
 
 # Cache files for the editor to use
 DerivedDataCache/*
+
+# Packs de loja sem nenhum referenciador no projeto (verificado varrendo os
+# 1.735 arquivos de Scene_Saloon/FPMovement/etc). Continuam no disco local;
+# rebaixe do Fab/Quixel se precisar. Ao comecar a usar algum, remova a linha
+# correspondente no MESMO commit em que o asset for referenciado.
+/Content/OldWest/
+/Content/SICKA_MouldingSet/
+/Content/FreeAnimationLibrary/
+/Content/Backrooms_Ambience/
