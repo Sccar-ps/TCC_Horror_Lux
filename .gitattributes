@@ -11,3 +11,15 @@
 *.png    filter=lfs diff=lfs merge=lfs -text
 *.jpg    filter=lfs diff=lfs merge=lfs -text
 *.ttf    filter=lfs diff=lfs merge=lfs -text
+
+# Variantes em caixa alta. O casamento de padrao do .gitattributes e
+# case-sensitive em filesystem case-sensitive (CI Linux, macOS com FS
+# case-sensitive): sem estas linhas, um SW_Algo.WAV novo entraria como blob
+# cru em vez de ir pro LFS. O projeto ja tem .WAV, .PNG e .FBX em maiuscula.
+*.UASSET filter=lfs diff=lfs merge=lfs -text
+*.UMAP   filter=lfs diff=lfs merge=lfs -text
+*.WAV    filter=lfs diff=lfs merge=lfs -text
+*.FBX    filter=lfs diff=lfs merge=lfs -text
+*.PNG    filter=lfs diff=lfs merge=lfs -text
+*.JPG    filter=lfs diff=lfs merge=lfs -text
+*.TTF    filter=lfs diff=lfs merge=lfs -text
