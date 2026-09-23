@@ -1,0 +1,8 @@
+{
+ "fx_map": "K2Node_CallFunction_FX02",
+ "fx_mulw": "K2Node_CallFunction_FX03",
+ "fx_sum": "K2Node_CallFunction_FX05",
+ "fx_c1": "EdGraphNode_Comment_FX06",
+ "fx_c2": "EdGraphNode_Comment_FX07",
+ "fy_c3": "EdGraphNode_Comment_FY01"
+}

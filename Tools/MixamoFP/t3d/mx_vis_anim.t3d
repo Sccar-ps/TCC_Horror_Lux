@@ -1,0 +1,11 @@
+Begin Object Class=/Script/AnimGraph.AnimGraphNode_CopyPoseFromMesh Name="AnimGraphNode_CopyPoseFromMesh_CB01"
+   Begin Object Class=/Script/AnimGraph.AnimGraphNodeBinding_Base Name="AnimGraphNodeBinding_Base_0"
+   End Object
+   Begin Object Name="AnimGraphNodeBinding_Base_0"
+   End Object
+   Node=(bUseAttachedParent=True,bCopyCurves=False)
+   Binding="/Script/AnimGraph.AnimGraphNodeBinding_Base'AnimGraphNodeBinding_Base_0'"
+   NodePosX=-300
+   NodePosY=0
+   NodeGuid=BBEE6B53D81B4579BF1F17BA8C5F7381
+End Object

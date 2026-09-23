@@ -1,0 +1,9 @@
+Begin Object Class=/Script/UnrealEd.EdGraphNode_Comment Name="EdGraphNode_Comment_FY01"
+   CommentColor=(R=0.10,G=0.35,B=0.60,A=1.0)
+   NodeWidth=1660
+   NodeHeight=420
+   NodeComment="Camada 1P: copia a pose da malha-sombra (Mesh) e aplica BodyShift na raiz + LeanRot em spine_01, so para o que a camera ve"
+   NodePosX=-940
+   NodePosY=-120
+   NodeGuid=C18B02CACB934F22AB55D282DE8A4827
+End Object

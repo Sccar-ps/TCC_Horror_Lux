@@ -1,0 +1,6 @@
+{
+ "abp_event_entry": "K2Node_MacroInstance_CB09",
+ "abp_finterp": "K2Node_CallFunction_CB29",
+ "abp_anim_exit": "AnimGraphNode_ComponentToLocalSpace_CB18",
+ "vis_anim_exit": "AnimGraphNode_CopyPoseFromMesh_CB01"
+}

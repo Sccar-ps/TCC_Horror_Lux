@@ -1,0 +1,48 @@
+Begin Object Class=/Script/BlueprintGraph.K2Node_Event Name="K2Node_Event_CB01"
+   EventReference=(MemberParent="/Script/CoreUObject.Class'/Script/Engine.AnimInstance'",MemberName="BlueprintInitializeAnimation")
+   bOverrideFunction=True
+   NodePosX=-600
+   NodePosY=-100
+   NodeGuid=C38068D294C6489AB983C42DAD99F42A
+   CustomProperties Pin (PinId=92377B0D72AA415F93DA1165E6051735,PinName="then",Direction="EGPD_Output",PinType.PinCategory="exec",LinkedTo=(K2Node_CallFunction_CB03 16B091246CF947529C704BA219A54929,),)
+End Object
+Begin Object Class=/Script/BlueprintGraph.K2Node_CallFunction Name="K2Node_CallFunction_CB02"
+   bDefaultsToPureFunc=True
+   FunctionReference=(MemberName="GetOwningComponent",bSelfContext=True)
+   NodePosX=-580
+   NodePosY=60
+   NodeGuid=48E061D88F544FB19227CE5A021F7691
+   CustomProperties Pin (PinId=52D141495B634D14909A876D28B93015,PinName="ReturnValue",Direction="EGPD_Output",PinType.PinCategory="object",PinType.PinSubCategoryObject="/Script/CoreUObject.Class'/Script/Engine.SkeletalMeshComponent'",LinkedTo=(K2Node_CallFunction_CB03 E4E2A32CBBAB4ED2965060D1F044DCC5,K2Node_CallFunction_CB04 3B8966987BC14DFCB5964BA1BE9B7A0C,K2Node_CallFunction_CB05 3D89730A4FC643C6A513E9336E3F61BA,),)
+End Object
+Begin Object Class=/Script/BlueprintGraph.K2Node_CallFunction Name="K2Node_CallFunction_CB03"
+   FunctionReference=(MemberParent="/Script/CoreUObject.Class'/Script/Engine.SkinnedMeshComponent'",MemberName="HideBoneByName")
+   NodePosX=-300
+   NodePosY=-100
+   NodeGuid=D8E707A2DAAA4965B7F593B1743540E9
+   CustomProperties Pin (PinId=16B091246CF947529C704BA219A54929,PinName="execute",PinType.PinCategory="exec",LinkedTo=(K2Node_Event_CB01 92377B0D72AA415F93DA1165E6051735,),)
+   CustomProperties Pin (PinId=84BB9CE75A9147759F9E6AA2F11DA466,PinName="then",Direction="EGPD_Output",PinType.PinCategory="exec",LinkedTo=(K2Node_CallFunction_CB04 2414932571304C198F5016A09E61B226,),)
+   CustomProperties Pin (PinId=E4E2A32CBBAB4ED2965060D1F044DCC5,PinName="self",PinType.PinCategory="object",PinType.PinSubCategoryObject="/Script/CoreUObject.Class'/Script/Engine.SkinnedMeshComponent'",LinkedTo=(K2Node_CallFunction_CB02 52D141495B634D14909A876D28B93015,),)
+   CustomProperties Pin (PinId=FD38FC644484446C85B28EA29F451116,PinName="BoneName",PinType.PinCategory="name",DefaultValue="neck_01",)
+   CustomProperties Pin (PinId=AD376D9FB23143439F891FDE8D96DB0E,PinName="PhysBodyOption",PinType.PinCategory="byte",PinType.PinSubCategoryObject="/Script/CoreUObject.Enum'/Script/Engine.EPhysBodyOp'",DefaultValue="PBO_None",)
+End Object
+Begin Object Class=/Script/BlueprintGraph.K2Node_CallFunction Name="K2Node_CallFunction_CB04"
+   FunctionReference=(MemberParent="/Script/CoreUObject.Class'/Script/Engine.SkinnedMeshComponent'",MemberName="HideBoneByName")
+   NodePosX=-20
+   NodePosY=-100
+   NodeGuid=8BD1200722F74B90A0BDD089566916FD
+   CustomProperties Pin (PinId=2414932571304C198F5016A09E61B226,PinName="execute",PinType.PinCategory="exec",LinkedTo=(K2Node_CallFunction_CB03 84BB9CE75A9147759F9E6AA2F11DA466,),)
+   CustomProperties Pin (PinId=57BF879A091946F287B5CE9543B7F9D2,PinName="then",Direction="EGPD_Output",PinType.PinCategory="exec",LinkedTo=(K2Node_CallFunction_CB05 F402D16DEC384392B305C7E7F0559DB2,),)
+   CustomProperties Pin (PinId=3B8966987BC14DFCB5964BA1BE9B7A0C,PinName="self",PinType.PinCategory="object",PinType.PinSubCategoryObject="/Script/CoreUObject.Class'/Script/Engine.SkinnedMeshComponent'",LinkedTo=(K2Node_CallFunction_CB02 52D141495B634D14909A876D28B93015,),)
+   CustomProperties Pin (PinId=2C0634C350F6444B962C4B07F72FD1A8,PinName="BoneName",PinType.PinCategory="name",DefaultValue="upperarm_l",)
+   CustomProperties Pin (PinId=EDAAEFF4EDC346E78B994E4614827DE9,PinName="PhysBodyOption",PinType.PinCategory="byte",PinType.PinSubCategoryObject="/Script/CoreUObject.Enum'/Script/Engine.EPhysBodyOp'",DefaultValue="PBO_None",)
+End Object
+Begin Object Class=/Script/BlueprintGraph.K2Node_CallFunction Name="K2Node_CallFunction_CB05"
+   FunctionReference=(MemberParent="/Script/CoreUObject.Class'/Script/Engine.SkinnedMeshComponent'",MemberName="HideBoneByName")
+   NodePosX=260
+   NodePosY=-100
+   NodeGuid=81AC9748ABFD4F8EADF95564F37BF88A
+   CustomProperties Pin (PinId=F402D16DEC384392B305C7E7F0559DB2,PinName="execute",PinType.PinCategory="exec",LinkedTo=(K2Node_CallFunction_CB04 57BF879A091946F287B5CE9543B7F9D2,),)
+   CustomProperties Pin (PinId=3D89730A4FC643C6A513E9336E3F61BA,PinName="self",PinType.PinCategory="object",PinType.PinSubCategoryObject="/Script/CoreUObject.Class'/Script/Engine.SkinnedMeshComponent'",LinkedTo=(K2Node_CallFunction_CB02 52D141495B634D14909A876D28B93015,),)
+   CustomProperties Pin (PinId=067C6A592816467F8E4E5B21F27242B7,PinName="BoneName",PinType.PinCategory="name",DefaultValue="upperarm_r",)
+   CustomProperties Pin (PinId=23A0AC4CD4824D93973D26F04667002C,PinName="PhysBodyOption",PinType.PinCategory="byte",PinType.PinSubCategoryObject="/Script/CoreUObject.Enum'/Script/Engine.EPhysBodyOp'",DefaultValue="PBO_None",)
+End Object

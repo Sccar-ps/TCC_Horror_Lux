@@ -1,0 +1,9 @@
+Begin Object Class=/Script/UnrealEd.EdGraphNode_Comment Name="EdGraphNode_Comment_FX07"
+   CommentColor=(R=0.10,G=0.35,B=0.60,A=1.0)
+   NodeWidth=3200
+   NodeHeight=1300
+   NodeComment="2) Update (so a malha visivel, a sombra nao muda): BodyShift mantem o pescoco NeckMinBehind cm atras da camera (corrige a inclinacao das animacoes) + LookDownShift ao olhar para baixo; LeanRot inclina o tronco para tras. StandW desliga tudo agachado."
+   NodePosX=-1260
+   NodePosY=20
+   NodeGuid=CF1F3F0D36034263A9352C3E5AC6AD4D
+End Object

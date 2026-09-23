@@ -1,0 +1,71 @@
+Begin Object Class=/Script/BlueprintGraph.K2Node_VariableGet Name="K2Node_VariableGet_FX01"
+   VariableReference=(MemberName="LookDownShift",bSelfContext=True)
+   NodePosX=780
+   NodePosY=1600
+   NodeGuid=3C9D2D1BDA29435FA37CAFE8A00A46C3
+   CustomProperties Pin (PinId=A60B1564973547E18CF2A002E8FEC2BE,PinName="LookDownShift",Direction="EGPD_Output",PinType.PinCategory="real",PinType.PinSubCategory="double",LinkedTo=(K2Node_CallFunction_FX04 C2B21F7D5EDF40FCA50B44DFC2BADB21,),)
+End Object
+Begin Object Class=/Script/BlueprintGraph.K2Node_CallFunction Name="K2Node_CallFunction_FX02"
+   bDefaultsToPureFunc=True
+   FunctionReference=(MemberParent="/Script/CoreUObject.Class'/Script/Engine.KismetMathLibrary'",MemberName="MapRangeClamped")
+   NodePosX=520
+   NodePosY=1460
+   NodeGuid=1CB9895FAC8348B481713690B9A7F7BF
+   CustomProperties Pin (PinId=7893CC41E101423D960E45AEDBBDFB5F,PinName="self",PinType.PinCategory="object",PinType.PinSubCategoryObject="/Script/CoreUObject.Class'/Script/Engine.KismetMathLibrary'",DefaultObject="/Script/Engine.Default__KismetMathLibrary",)
+   CustomProperties Pin (PinId=E2B150F5C045431A8EE7D41984B268D6,PinName="Value",PinType.PinCategory="real",PinType.PinSubCategory="double",DefaultValue="0.0",)
+   CustomProperties Pin (PinId=8C4419CC49BD4CD0B8B4C1347323BA0E,PinName="InRangeA",PinType.PinCategory="real",PinType.PinSubCategory="double",DefaultValue="-20.0",)
+   CustomProperties Pin (PinId=64073AD26B9D4C2A84417A2B76972592,PinName="InRangeB",PinType.PinCategory="real",PinType.PinSubCategory="double",DefaultValue="-75.0",)
+   CustomProperties Pin (PinId=107E3F297828417E8EA80E8422EC256B,PinName="OutRangeA",PinType.PinCategory="real",PinType.PinSubCategory="double",DefaultValue="0.0",)
+   CustomProperties Pin (PinId=A7ABCBBE5CBB4B7F9C0EDCA7BB806E7A,PinName="OutRangeB",PinType.PinCategory="real",PinType.PinSubCategory="double",DefaultValue="1.0",)
+   CustomProperties Pin (PinId=666B0F71F6BD46208DDCD708F3EB3998,PinName="ReturnValue",Direction="EGPD_Output",PinType.PinCategory="real",PinType.PinSubCategory="double",LinkedTo=(K2Node_CallFunction_FX03 318CE8D6E8294E34A900C07D9452DD76,),)
+End Object
+Begin Object Class=/Script/BlueprintGraph.K2Node_CallFunction Name="K2Node_CallFunction_FX03"
+   bDefaultsToPureFunc=True
+   FunctionReference=(MemberParent="/Script/CoreUObject.Class'/Script/Engine.KismetMathLibrary'",MemberName="Multiply_DoubleDouble")
+   NodePosX=780
+   NodePosY=1460
+   NodeGuid=EA5B3EF3709B419AAA5EEDCF404A952F
+   CustomProperties Pin (PinId=57D09C5206F54B09B1DC7619F71C20D8,PinName="self",PinType.PinCategory="object",PinType.PinSubCategoryObject="/Script/CoreUObject.Class'/Script/Engine.KismetMathLibrary'",DefaultObject="/Script/Engine.Default__KismetMathLibrary",)
+   CustomProperties Pin (PinId=318CE8D6E8294E34A900C07D9452DD76,PinName="A",PinType.PinCategory="real",PinType.PinSubCategory="double",DefaultValue="0.0",LinkedTo=(K2Node_CallFunction_FX02 666B0F71F6BD46208DDCD708F3EB3998,),)
+   CustomProperties Pin (PinId=C3ACC91E1860493A9F9486288B066509,PinName="B",PinType.PinCategory="real",PinType.PinSubCategory="double",DefaultValue="0.0",)
+   CustomProperties Pin (PinId=BD5D26F2E6BE4F0A926FE882C0583443,PinName="ReturnValue",Direction="EGPD_Output",PinType.PinCategory="real",PinType.PinSubCategory="double",LinkedTo=(K2Node_CallFunction_FX04 AD7BD5FC25D64768A79C04E2B4D5DD69,),)
+End Object
+Begin Object Class=/Script/BlueprintGraph.K2Node_CallFunction Name="K2Node_CallFunction_FX04"
+   bDefaultsToPureFunc=True
+   FunctionReference=(MemberParent="/Script/CoreUObject.Class'/Script/Engine.KismetMathLibrary'",MemberName="Multiply_DoubleDouble")
+   NodePosX=1020
+   NodePosY=1500
+   NodeGuid=FCF3EDA1A61D4F008A08090C6269E649
+   CustomProperties Pin (PinId=AB87408412704DD9B17726503CE5C54C,PinName="self",PinType.PinCategory="object",PinType.PinSubCategoryObject="/Script/CoreUObject.Class'/Script/Engine.KismetMathLibrary'",DefaultObject="/Script/Engine.Default__KismetMathLibrary",)
+   CustomProperties Pin (PinId=AD7BD5FC25D64768A79C04E2B4D5DD69,PinName="A",PinType.PinCategory="real",PinType.PinSubCategory="double",DefaultValue="0.0",LinkedTo=(K2Node_CallFunction_FX03 BD5D26F2E6BE4F0A926FE882C0583443,),)
+   CustomProperties Pin (PinId=C2B21F7D5EDF40FCA50B44DFC2BADB21,PinName="B",PinType.PinCategory="real",PinType.PinSubCategory="double",DefaultValue="0.0",LinkedTo=(K2Node_VariableGet_FX01 A60B1564973547E18CF2A002E8FEC2BE,),)
+   CustomProperties Pin (PinId=F208B61C7DDA4E8F9F42D38359DE45F7,PinName="ReturnValue",Direction="EGPD_Output",PinType.PinCategory="real",PinType.PinSubCategory="double",LinkedTo=(K2Node_CallFunction_FX05 C02FC213E4BF4B66A1A3F2F2CCCBE0E0,),)
+End Object
+Begin Object Class=/Script/BlueprintGraph.K2Node_CallFunction Name="K2Node_CallFunction_FX05"
+   bDefaultsToPureFunc=True
+   FunctionReference=(MemberParent="/Script/CoreUObject.Class'/Script/Engine.KismetMathLibrary'",MemberName="Add_DoubleDouble")
+   NodePosX=1400
+   NodePosY=1060
+   NodeGuid=756AC5FA5F07477FA8947B499B390FBD
+   CustomProperties Pin (PinId=8981331A0AA74F2C83E41F6733B6CC20,PinName="self",PinType.PinCategory="object",PinType.PinSubCategoryObject="/Script/CoreUObject.Class'/Script/Engine.KismetMathLibrary'",DefaultObject="/Script/Engine.Default__KismetMathLibrary",)
+   CustomProperties Pin (PinId=450B345CFF664DE386E3591A287DBEE6,PinName="A",PinType.PinCategory="real",PinType.PinSubCategory="double",DefaultValue="0.0",)
+   CustomProperties Pin (PinId=C02FC213E4BF4B66A1A3F2F2CCCBE0E0,PinName="B",PinType.PinCategory="real",PinType.PinSubCategory="double",DefaultValue="0.0",LinkedTo=(K2Node_CallFunction_FX04 F208B61C7DDA4E8F9F42D38359DE45F7,),)
+End Object
+Begin Object Class=/Script/UnrealEd.EdGraphNode_Comment Name="EdGraphNode_Comment_FX06"
+   CommentColor=(R=0.10,G=0.35,B=0.60,A=1.0)
+   NodeWidth=1800
+   NodeHeight=330
+   NodeComment="1) Initialize: esconde cabeca e bracos da malha visivel e guarda a referencia do Player (cast uma unica vez)"
+   NodePosX=-1260
+   NodePosY=-380
+   NodeGuid=CE6C66FA008047378D95B5A5F9330CF6
+End Object
+Begin Object Class=/Script/UnrealEd.EdGraphNode_Comment Name="EdGraphNode_Comment_FX07"
+   CommentColor=(R=0.10,G=0.35,B=0.60,A=1.0)
+   NodeWidth=3200
+   NodeHeight=1300
+   NodeComment="2) Update (so a malha visivel, a sombra nao muda): BodyShift mantem o pescoco NeckMinBehind cm atras da camera (corrige a inclinacao das animacoes) + LookDownShift ao olhar para baixo; LeanRot inclina o tronco para tras. StandW desliga tudo agachado."
+   NodePosX=-1260
+   NodePosY=20
+   NodeGuid=CF1F3F0D36034263A9352C3E5AC6AD4D
+End Object

@@ -1,0 +1,9 @@
+Begin Object Class=/Script/UnrealEd.EdGraphNode_Comment Name="EdGraphNode_Comment_FX06"
+   CommentColor=(R=0.10,G=0.35,B=0.60,A=1.0)
+   NodeWidth=1800
+   NodeHeight=330
+   NodeComment="1) Initialize: esconde cabeca e bracos da malha visivel e guarda a referencia do Player (cast uma unica vez)"
+   NodePosX=-1260
+   NodePosY=-380
+   NodeGuid=CE6C66FA008047378D95B5A5F9330CF6
+End Object

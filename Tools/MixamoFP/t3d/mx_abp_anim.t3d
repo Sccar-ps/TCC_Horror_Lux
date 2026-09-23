@@ -1,0 +1,226 @@
+Begin Object Class=/Script/BlueprintGraph.K2Node_VariableGet Name="K2Node_VariableGet_CB01"
+   VariableReference=(MemberName="Direction",bSelfContext=True)
+   NodePosX=-1700
+   NodePosY=-40
+   NodeGuid=C8D93A02D27A44B0B26EAD4C259A60A0
+   CustomProperties Pin (PinId=E3E5919A34704C2C86DE0DD7B0920440,PinName="Direction",Direction="EGPD_Output",PinType.PinCategory="real",PinType.PinSubCategory="double",LinkedTo=(AnimGraphNode_BlendSpacePlayer_CB03 F0EC9EE58B494C5E9768CA300EB7E596,AnimGraphNode_BlendSpacePlayer_CB04 B0B18563B66949B282B012FDC3625A49,),)
+End Object
+Begin Object Class=/Script/BlueprintGraph.K2Node_VariableGet Name="K2Node_VariableGet_CB02"
+   VariableReference=(MemberName="Speed",bSelfContext=True)
+   NodePosX=-1700
+   NodePosY=40
+   NodeGuid=CB4F40F0BB3F4E5282F62A001B0BAF5E
+   CustomProperties Pin (PinId=1280A42F87A7416B9E75E5CAF301F109,PinName="Speed",Direction="EGPD_Output",PinType.PinCategory="real",PinType.PinSubCategory="double",LinkedTo=(AnimGraphNode_BlendSpacePlayer_CB03 8FFF0360A6734B08A45AE1BFDF22CE01,AnimGraphNode_BlendSpacePlayer_CB04 8876EFA19981448BA86124112D5C3C47,),)
+End Object
+Begin Object Class=/Script/AnimGraph.AnimGraphNode_BlendSpacePlayer Name="AnimGraphNode_BlendSpacePlayer_CB03"
+   Begin Object Class=/Script/AnimGraph.AnimGraphNodeBinding_Base Name="AnimGraphNodeBinding_Base_0"
+   End Object
+   Begin Object Name="AnimGraphNodeBinding_Base_0"
+   End Object
+   Node=(BlendSpace="/Script/Engine.BlendSpace'/Game/Characters/MixamoFP/BlendSpaces/BS_CB_Stand.BS_CB_Stand'")
+   ShowPinForProperties(0)=(PropertyName="X",PropertyFriendlyName="X",CategoryName="Coordinates",bShowPin=True,bCanToggleVisibility=True)
+   ShowPinForProperties(1)=(PropertyName="Y",PropertyFriendlyName="Y",CategoryName="Coordinates",bShowPin=True,bCanToggleVisibility=True)
+   Binding="/Script/AnimGraph.AnimGraphNodeBinding_Base'AnimGraphNodeBinding_Base_0'"
+   NodePosX=-1450
+   NodePosY=-220
+   NodeGuid=6DC0601B9EB24F1C986A5C4E945B9299
+   CustomProperties Pin (PinId=F0EC9EE58B494C5E9768CA300EB7E596,PinName="X",PinType.PinCategory="real",PinType.PinSubCategory="float",DefaultValue="0.000000",LinkedTo=(K2Node_VariableGet_CB01 E3E5919A34704C2C86DE0DD7B0920440,),)
+   CustomProperties Pin (PinId=8FFF0360A6734B08A45AE1BFDF22CE01,PinName="Y",PinType.PinCategory="real",PinType.PinSubCategory="float",DefaultValue="0.000000",LinkedTo=(K2Node_VariableGet_CB02 1280A42F87A7416B9E75E5CAF301F109,),)
+   CustomProperties Pin (PinId=96247D34EA664F19A2543C37F05DC964,PinName="Pose",Direction="EGPD_Output",PinType.PinCategory="struct",PinType.PinSubCategoryObject="/Script/CoreUObject.ScriptStruct'/Script/Engine.PoseLink'",LinkedTo=(AnimGraphNode_TwoWayBlend_CB06 5728E1B512744F0EBE6359011DC19703,),)
+End Object
+Begin Object Class=/Script/AnimGraph.AnimGraphNode_BlendSpacePlayer Name="AnimGraphNode_BlendSpacePlayer_CB04"
+   Begin Object Class=/Script/AnimGraph.AnimGraphNodeBinding_Base Name="AnimGraphNodeBinding_Base_0"
+   End Object
+   Begin Object Name="AnimGraphNodeBinding_Base_0"
+   End Object
+   Node=(BlendSpace="/Script/Engine.BlendSpace'/Game/Characters/MixamoFP/BlendSpaces/BS_CB_Crouch.BS_CB_Crouch'")
+   ShowPinForProperties(0)=(PropertyName="X",PropertyFriendlyName="X",CategoryName="Coordinates",bShowPin=True,bCanToggleVisibility=True)
+   ShowPinForProperties(1)=(PropertyName="Y",PropertyFriendlyName="Y",CategoryName="Coordinates",bShowPin=True,bCanToggleVisibility=True)
+   Binding="/Script/AnimGraph.AnimGraphNodeBinding_Base'AnimGraphNodeBinding_Base_0'"
+   NodePosX=-1450
+   NodePosY=140
+   NodeGuid=662660B79D0A41DB9945C21A5B6F10E2
+   CustomProperties Pin (PinId=B0B18563B66949B282B012FDC3625A49,PinName="X",PinType.PinCategory="real",PinType.PinSubCategory="float",DefaultValue="0.000000",LinkedTo=(K2Node_VariableGet_CB01 E3E5919A34704C2C86DE0DD7B0920440,),)
+   CustomProperties Pin (PinId=8876EFA19981448BA86124112D5C3C47,PinName="Y",PinType.PinCategory="real",PinType.PinSubCategory="float",DefaultValue="0.000000",LinkedTo=(K2Node_VariableGet_CB02 1280A42F87A7416B9E75E5CAF301F109,),)
+   CustomProperties Pin (PinId=7B653621CA22406186EF011B94474EDA,PinName="Pose",Direction="EGPD_Output",PinType.PinCategory="struct",PinType.PinSubCategoryObject="/Script/CoreUObject.ScriptStruct'/Script/Engine.PoseLink'",LinkedTo=(AnimGraphNode_TwoWayBlend_CB06 36A0325C06F54010A4C1E81EEA63B842,),)
+End Object
+Begin Object Class=/Script/BlueprintGraph.K2Node_VariableGet Name="K2Node_VariableGet_CB05"
+   VariableReference=(MemberName="CrouchAlpha",bSelfContext=True)
+   NodePosX=-1200
+   NodePosY=300
+   NodeGuid=2FC5256A61EB49D796A068CBB0AD61F3
+   CustomProperties Pin (PinId=8C92AE99F0F44833BB432B161D7946F4,PinName="CrouchAlpha",Direction="EGPD_Output",PinType.PinCategory="real",PinType.PinSubCategory="double",LinkedTo=(AnimGraphNode_TwoWayBlend_CB06 DAD0CB589AE04F33A0EF066DCDE4EE13,),)
+End Object
+Begin Object Class=/Script/AnimGraph.AnimGraphNode_TwoWayBlend Name="AnimGraphNode_TwoWayBlend_CB06"
+   Begin Object Class=/Script/AnimGraph.AnimGraphNodeBinding_Base Name="AnimGraphNodeBinding_Base_0"
+   End Object
+   Begin Object Name="AnimGraphNodeBinding_Base_0"
+   End Object
+   ShowPinForProperties(0)=(PropertyName="A",PropertyFriendlyName="A",CategoryName="Links",bShowPin=True)
+   ShowPinForProperties(1)=(PropertyName="B",PropertyFriendlyName="B",CategoryName="Links",bShowPin=True)
+   ShowPinForProperties(2)=(PropertyName="Alpha",PropertyFriendlyName="Alpha",CategoryName="Settings",bShowPin=True,bCanToggleVisibility=True)
+   Binding="/Script/AnimGraph.AnimGraphNodeBinding_Base'AnimGraphNodeBinding_Base_0'"
+   NodePosX=-1100
+   NodePosY=-40
+   NodeGuid=00E5B656F65A4D1F8EBAB9DB53B69251
+   CustomProperties Pin (PinId=5728E1B512744F0EBE6359011DC19703,PinName="A",PinType.PinCategory="struct",PinType.PinSubCategoryObject="/Script/CoreUObject.ScriptStruct'/Script/Engine.PoseLink'",DefaultValue="(LinkID=-1,SourceLinkID=-1)",LinkedTo=(AnimGraphNode_BlendSpacePlayer_CB03 96247D34EA664F19A2543C37F05DC964,),)
+   CustomProperties Pin (PinId=36A0325C06F54010A4C1E81EEA63B842,PinName="B",PinType.PinCategory="struct",PinType.PinSubCategoryObject="/Script/CoreUObject.ScriptStruct'/Script/Engine.PoseLink'",DefaultValue="(LinkID=-1,SourceLinkID=-1)",LinkedTo=(AnimGraphNode_BlendSpacePlayer_CB04 7B653621CA22406186EF011B94474EDA,),)
+   CustomProperties Pin (PinId=DAD0CB589AE04F33A0EF066DCDE4EE13,PinName="Alpha",PinType.PinCategory="real",PinType.PinSubCategory="float",DefaultValue="0.000000",LinkedTo=(K2Node_VariableGet_CB05 8C92AE99F0F44833BB432B161D7946F4,),)
+   CustomProperties Pin (PinId=19F7A81A34FA4C3099DBA2D544689F7A,PinName="Pose",Direction="EGPD_Output",PinType.PinCategory="struct",PinType.PinSubCategoryObject="/Script/CoreUObject.ScriptStruct'/Script/Engine.PoseLink'",LinkedTo=(AnimGraphNode_TwoWayBlend_CB09 DAD4747AB4D94193A6E590988F97ADF1,),)
+End Object
+Begin Object Class=/Script/AnimGraph.AnimGraphNode_SequencePlayer Name="AnimGraphNode_SequencePlayer_CB07"
+   Begin Object Class=/Script/AnimGraph.AnimGraphNodeBinding_Base Name="AnimGraphNodeBinding_Base_0"
+   End Object
+   Begin Object Name="AnimGraphNodeBinding_Base_0"
+   End Object
+   Node=(Sequence="/Script/Engine.AnimSequence'/Game/Characters/MixamoFP/Anims/A_CB_Fall.A_CB_Fall'")
+   Binding="/Script/AnimGraph.AnimGraphNodeBinding_Base'AnimGraphNodeBinding_Base_0'"
+   NodePosX=-1100
+   NodePosY=360
+   NodeGuid=B896DB1A874D4EB7B42660618745BDE7
+   CustomProperties Pin (PinId=EE568945F9164B1EAE7FC5391D3AD1E0,PinName="Pose",Direction="EGPD_Output",PinType.PinCategory="struct",PinType.PinSubCategoryObject="/Script/CoreUObject.ScriptStruct'/Script/Engine.PoseLink'",LinkedTo=(AnimGraphNode_TwoWayBlend_CB09 7EB19A7861E343E0A0C5F33D7D838036,),)
+End Object
+Begin Object Class=/Script/BlueprintGraph.K2Node_VariableGet Name="K2Node_VariableGet_CB08"
+   VariableReference=(MemberName="InAirAlpha",bSelfContext=True)
+   NodePosX=-820
+   NodePosY=420
+   NodeGuid=501AF2EBB00140029D9BF508D5CAD122
+   CustomProperties Pin (PinId=5DC07A583EB342B3BE39A4DF844EAB1A,PinName="InAirAlpha",Direction="EGPD_Output",PinType.PinCategory="real",PinType.PinSubCategory="double",LinkedTo=(AnimGraphNode_TwoWayBlend_CB09 DBBF95DEB35B4334B7EBCC28D51FA12E,),)
+End Object
+Begin Object Class=/Script/AnimGraph.AnimGraphNode_TwoWayBlend Name="AnimGraphNode_TwoWayBlend_CB09"
+   Begin Object Class=/Script/AnimGraph.AnimGraphNodeBinding_Base Name="AnimGraphNodeBinding_Base_0"
+   End Object
+   Begin Object Name="AnimGraphNodeBinding_Base_0"
+   End Object
+   ShowPinForProperties(0)=(PropertyName="A",PropertyFriendlyName="A",CategoryName="Links",bShowPin=True)
+   ShowPinForProperties(1)=(PropertyName="B",PropertyFriendlyName="B",CategoryName="Links",bShowPin=True)
+   ShowPinForProperties(2)=(PropertyName="Alpha",PropertyFriendlyName="Alpha",CategoryName="Settings",bShowPin=True,bCanToggleVisibility=True)
+   Binding="/Script/AnimGraph.AnimGraphNodeBinding_Base'AnimGraphNodeBinding_Base_0'"
+   NodePosX=-760
+   NodePosY=-20
+   NodeGuid=52792DE56AA345BF8A51DFA0F8405708
+   CustomProperties Pin (PinId=DAD4747AB4D94193A6E590988F97ADF1,PinName="A",PinType.PinCategory="struct",PinType.PinSubCategoryObject="/Script/CoreUObject.ScriptStruct'/Script/Engine.PoseLink'",DefaultValue="(LinkID=-1,SourceLinkID=-1)",LinkedTo=(AnimGraphNode_TwoWayBlend_CB06 19F7A81A34FA4C3099DBA2D544689F7A,),)
+   CustomProperties Pin (PinId=7EB19A7861E343E0A0C5F33D7D838036,PinName="B",PinType.PinCategory="struct",PinType.PinSubCategoryObject="/Script/CoreUObject.ScriptStruct'/Script/Engine.PoseLink'",DefaultValue="(LinkID=-1,SourceLinkID=-1)",LinkedTo=(AnimGraphNode_SequencePlayer_CB07 EE568945F9164B1EAE7FC5391D3AD1E0,),)
+   CustomProperties Pin (PinId=DBBF95DEB35B4334B7EBCC28D51FA12E,PinName="Alpha",PinType.PinCategory="real",PinType.PinSubCategory="float",DefaultValue="0.000000",LinkedTo=(K2Node_VariableGet_CB08 5DC07A583EB342B3BE39A4DF844EAB1A,),)
+   CustomProperties Pin (PinId=C6B61BEA3D07499FA7B2993263794DF6,PinName="Pose",Direction="EGPD_Output",PinType.PinCategory="struct",PinType.PinSubCategoryObject="/Script/CoreUObject.ScriptStruct'/Script/Engine.PoseLink'",LinkedTo=(AnimGraphNode_SaveCachedPose_CB10 A315ACF739C745EA83A97EC36A39FD0C,),)
+End Object
+Begin Object Class=/Script/AnimGraph.AnimGraphNode_SaveCachedPose Name="AnimGraphNode_SaveCachedPose_CB10"
+   Begin Object Class=/Script/AnimGraph.AnimGraphNodeBinding_Base Name="AnimGraphNodeBinding_Base_0"
+   End Object
+   Begin Object Name="AnimGraphNodeBinding_Base_0"
+   End Object
+   CacheName="CB_Locomotion"
+   ShowPinForProperties(0)=(PropertyName="Pose",PropertyFriendlyName="Pose",CategoryName="Links",bShowPin=True)
+   Binding="/Script/AnimGraph.AnimGraphNodeBinding_Base'AnimGraphNodeBinding_Base_0'"
+   NodePosX=-440
+   NodePosY=-20
+   NodeGuid=719B435FE18F4ECA8257EED70B8C1189
+   CustomProperties Pin (PinId=A315ACF739C745EA83A97EC36A39FD0C,PinName="Pose",PinType.PinCategory="struct",PinType.PinSubCategoryObject="/Script/CoreUObject.ScriptStruct'/Script/Engine.PoseLink'",DefaultValue="(LinkID=-1,SourceLinkID=-1)",LinkedTo=(AnimGraphNode_TwoWayBlend_CB09 C6B61BEA3D07499FA7B2993263794DF6,),)
+End Object
+Begin Object Class=/Script/AnimGraph.AnimGraphNode_UseCachedPose Name="AnimGraphNode_UseCachedPose_CB11"
+   Begin Object Class=/Script/AnimGraph.AnimGraphNodeBinding_Base Name="AnimGraphNodeBinding_Base_0"
+   End Object
+   Begin Object Name="AnimGraphNodeBinding_Base_0"
+   End Object
+   SaveCachedPoseNode="/Script/AnimGraph.AnimGraphNode_SaveCachedPose'AnimGraphNode_SaveCachedPose_CB10'"
+   NameOfCache="CB_Locomotion"
+   Binding="/Script/AnimGraph.AnimGraphNodeBinding_Base'AnimGraphNodeBinding_Base_0'"
+   NodePosX=-200
+   NodePosY=-200
+   NodeGuid=A51422F6CC174A2BAC8412B6E9DBB38E
+   CustomProperties Pin (PinId=2278361A34374676A861115353D80155,PinName="Pose",Direction="EGPD_Output",PinType.PinCategory="struct",PinType.PinSubCategoryObject="/Script/CoreUObject.ScriptStruct'/Script/Engine.PoseLink'",LinkedTo=(AnimGraphNode_LayeredBoneBlend_CB14 066F7FE1B3734127AF5CDF1E6A352F77,),)
+End Object
+Begin Object Class=/Script/AnimGraph.AnimGraphNode_UseCachedPose Name="AnimGraphNode_UseCachedPose_CB12"
+   Begin Object Class=/Script/AnimGraph.AnimGraphNodeBinding_Base Name="AnimGraphNodeBinding_Base_0"
+   End Object
+   Begin Object Name="AnimGraphNodeBinding_Base_0"
+   End Object
+   SaveCachedPoseNode="/Script/AnimGraph.AnimGraphNode_SaveCachedPose'AnimGraphNode_SaveCachedPose_CB10'"
+   NameOfCache="CB_Locomotion"
+   Binding="/Script/AnimGraph.AnimGraphNodeBinding_Base'AnimGraphNodeBinding_Base_0'"
+   NodePosX=-200
+   NodePosY=80
+   NodeGuid=9BC42F4F439D4850AEBAF983104EB859
+   CustomProperties Pin (PinId=5CCAD2DF982F4263AF1D740CE2973197,PinName="Pose",Direction="EGPD_Output",PinType.PinCategory="struct",PinType.PinSubCategoryObject="/Script/CoreUObject.ScriptStruct'/Script/Engine.PoseLink'",LinkedTo=(AnimGraphNode_Slot_CB13 032C7E6CFE8F4F74948345705DBE4C87,),)
+End Object
+Begin Object Class=/Script/AnimGraph.AnimGraphNode_Slot Name="AnimGraphNode_Slot_CB13"
+   Begin Object Class=/Script/AnimGraph.AnimGraphNodeBinding_Base Name="AnimGraphNodeBinding_Base_0"
+   End Object
+   Begin Object Name="AnimGraphNodeBinding_Base_0"
+   End Object
+   Node=(SlotName="DefaultSlot")
+   ShowPinForProperties(0)=(PropertyName="Source",PropertyFriendlyName="Source",CategoryName="Links",bShowPin=True)
+   Binding="/Script/AnimGraph.AnimGraphNodeBinding_Base'AnimGraphNodeBinding_Base_0'"
+   NodePosX=40
+   NodePosY=80
+   NodeGuid=DC353A3430824D9C97EBAC0A99F9053C
+   CustomProperties Pin (PinId=032C7E6CFE8F4F74948345705DBE4C87,PinName="Source",PinType.PinCategory="struct",PinType.PinSubCategoryObject="/Script/CoreUObject.ScriptStruct'/Script/Engine.PoseLink'",DefaultValue="(LinkID=-1,SourceLinkID=-1)",LinkedTo=(AnimGraphNode_UseCachedPose_CB12 5CCAD2DF982F4263AF1D740CE2973197,),)
+   CustomProperties Pin (PinId=F3E93CC24EB747EB8EA8BC8F6F43ECFF,PinName="Pose",Direction="EGPD_Output",PinType.PinCategory="struct",PinType.PinSubCategoryObject="/Script/CoreUObject.ScriptStruct'/Script/Engine.PoseLink'",LinkedTo=(AnimGraphNode_LayeredBoneBlend_CB14 5EED8A556274426DBD93DE5EABCE62F0,),)
+End Object
+Begin Object Class=/Script/AnimGraph.AnimGraphNode_LayeredBoneBlend Name="AnimGraphNode_LayeredBoneBlend_CB14"
+   Begin Object Class=/Script/AnimGraph.AnimGraphNodeBinding_Base Name="AnimGraphNodeBinding_Base_0"
+   End Object
+   Begin Object Name="AnimGraphNodeBinding_Base_0"
+   End Object
+   Node=(LayerSetup=((BranchFilters=((BoneName="spine_01")))),bMeshSpaceRotationBlend=True)
+   Binding="/Script/AnimGraph.AnimGraphNodeBinding_Base'AnimGraphNodeBinding_Base_0'"
+   NodePosX=300
+   NodePosY=-100
+   NodeGuid=0E0EC047C603474D8269736BBC92A91E
+   CustomProperties Pin (PinId=066F7FE1B3734127AF5CDF1E6A352F77,PinName="BasePose",PinType.PinCategory="struct",PinType.PinSubCategoryObject="/Script/CoreUObject.ScriptStruct'/Script/Engine.PoseLink'",DefaultValue="(LinkID=-1,SourceLinkID=-1)",LinkedTo=(AnimGraphNode_UseCachedPose_CB11 2278361A34374676A861115353D80155,),)
+   CustomProperties Pin (PinId=5EED8A556274426DBD93DE5EABCE62F0,PinName="BlendPoses_0",PinType.PinCategory="struct",PinType.PinSubCategoryObject="/Script/CoreUObject.ScriptStruct'/Script/Engine.PoseLink'",DefaultValue="(LinkID=-1,SourceLinkID=-1)",LinkedTo=(AnimGraphNode_Slot_CB13 F3E93CC24EB747EB8EA8BC8F6F43ECFF,),)
+   CustomProperties Pin (PinId=D466D62780E641C9B664F200ADE2C022,PinName="BlendWeights_0",PinType.PinCategory="real",PinType.PinSubCategory="float",DefaultValue="1.000000",)
+   CustomProperties Pin (PinId=57E3AB27DFEB417C9752EF3DB91A1F75,PinName="Pose",Direction="EGPD_Output",PinType.PinCategory="struct",PinType.PinSubCategoryObject="/Script/CoreUObject.ScriptStruct'/Script/Engine.PoseLink'",LinkedTo=(AnimGraphNode_LocalToComponentSpace_CB15 010BC9A214314B4386A9306D82DC7B26,),)
+End Object
+Begin Object Class=/Script/AnimGraph.AnimGraphNode_LocalToComponentSpace Name="AnimGraphNode_LocalToComponentSpace_CB15"
+   Begin Object Class=/Script/AnimGraph.AnimGraphNodeBinding_Base Name="AnimGraphNodeBinding_Base_0"
+   End Object
+   Begin Object Name="AnimGraphNodeBinding_Base_0"
+   End Object
+   ShowPinForProperties(0)=(PropertyName="LocalPose",PropertyFriendlyName="Local Pose",CategoryName="Links",bShowPin=True)
+   Binding="/Script/AnimGraph.AnimGraphNodeBinding_Base'AnimGraphNodeBinding_Base_0'"
+   NodePosX=580
+   NodePosY=-80
+   NodeGuid=DEA7C66277A442E5A4A092C41590D6B4
+   CustomProperties Pin (PinId=010BC9A214314B4386A9306D82DC7B26,PinName="LocalPose",PinType.PinCategory="struct",PinType.PinSubCategoryObject="/Script/CoreUObject.ScriptStruct'/Script/Engine.PoseLink'",DefaultValue="(LinkID=-1,SourceLinkID=-1)",LinkedTo=(AnimGraphNode_LayeredBoneBlend_CB14 57E3AB27DFEB417C9752EF3DB91A1F75,),)
+   CustomProperties Pin (PinId=A957DDC6E8B84973846B866F1DD0470B,PinName="ComponentPose",Direction="EGPD_Output",PinType.PinCategory="struct",PinType.PinSubCategoryObject="/Script/CoreUObject.ScriptStruct'/Script/Engine.ComponentSpacePoseLink'",LinkedTo=(AnimGraphNode_ModifyBone_CB17 C16090574AA34C2990B9359588EF2F95,),)
+End Object
+Begin Object Class=/Script/BlueprintGraph.K2Node_VariableGet Name="K2Node_VariableGet_CB16"
+   VariableReference=(MemberName="RootOffset",bSelfContext=True)
+   NodePosX=600
+   NodePosY=100
+   NodeGuid=05050129529E434A845946AC92389428
+   CustomProperties Pin (PinId=CF98D5856A074BAA84BF2C1531A734F4,PinName="RootOffset",Direction="EGPD_Output",PinType.PinCategory="struct",PinType.PinSubCategoryObject="/Script/CoreUObject.ScriptStruct'/Script/CoreUObject.Vector'",LinkedTo=(AnimGraphNode_ModifyBone_CB17 155C2B832BD4455586BCF4C93A80A2C9,),)
+End Object
+Begin Object Class=/Script/AnimGraph.AnimGraphNode_ModifyBone Name="AnimGraphNode_ModifyBone_CB17"
+   Begin Object Class=/Script/AnimGraph.AnimGraphNodeBinding_Base Name="AnimGraphNodeBinding_Base_0"
+   End Object
+   Begin Object Name="AnimGraphNodeBinding_Base_0"
+   End Object
+   Node=(BoneToModify=(BoneName="root"),TranslationMode=BMM_Additive,TranslationSpace=BCS_ComponentSpace,AlphaBoolBlend=(BlendOption=Linear))
+   ShowPinForProperties(0)=(PropertyName="ComponentPose",PropertyFriendlyName="Component Pose",CategoryName="Links",bShowPin=True)
+   ShowPinForProperties(1)=(PropertyName="Alpha",PropertyFriendlyName="Alpha",CategoryName="Alpha",bShowPin=True,bCanToggleVisibility=True)
+   ShowPinForProperties(2)=(PropertyName="Translation",PropertyFriendlyName="Translation",CategoryName="Translation",bShowPin=True,bCanToggleVisibility=True)
+   ShowPinForProperties(3)=(PropertyName="Rotation",PropertyFriendlyName="Rotation",CategoryName="Rotation",bCanToggleVisibility=True)
+   ShowPinForProperties(4)=(PropertyName="Scale",PropertyFriendlyName="Scale",CategoryName="Scale",bCanToggleVisibility=True)
+   Binding="/Script/AnimGraph.AnimGraphNodeBinding_Base'AnimGraphNodeBinding_Base_0'"
+   NodePosX=840
+   NodePosY=-80
+   NodeGuid=FECED5C7B56C461D95805DEECB4B8407
+   CustomProperties Pin (PinId=C16090574AA34C2990B9359588EF2F95,PinName="ComponentPose",PinType.PinCategory="struct",PinType.PinSubCategoryObject="/Script/CoreUObject.ScriptStruct'/Script/Engine.ComponentSpacePoseLink'",DefaultValue="(LinkID=-1,SourceLinkID=-1)",LinkedTo=(AnimGraphNode_LocalToComponentSpace_CB15 A957DDC6E8B84973846B866F1DD0470B,),)
+   CustomProperties Pin (PinId=826AF119BC484013AF6AEAEA1DBD353B,PinName="Alpha",PinType.PinCategory="real",PinType.PinSubCategory="float",DefaultValue="1.000000",)
+   CustomProperties Pin (PinId=155C2B832BD4455586BCF4C93A80A2C9,PinName="Translation",PinType.PinCategory="struct",PinType.PinSubCategoryObject="/Script/CoreUObject.ScriptStruct'/Script/CoreUObject.Vector'",DefaultValue="0.000000,0.000000,0.000000",LinkedTo=(K2Node_VariableGet_CB16 CF98D5856A074BAA84BF2C1531A734F4,),)
+   CustomProperties Pin (PinId=16818D9F859D49C888BE721732A243F6,PinName="Pose",Direction="EGPD_Output",PinType.PinCategory="struct",PinType.PinSubCategoryObject="/Script/CoreUObject.ScriptStruct'/Script/Engine.ComponentSpacePoseLink'",LinkedTo=(AnimGraphNode_ComponentToLocalSpace_CB18 BBE24C295EEE4FD5B70B6CC693A924D9,),)
+End Object
+Begin Object Class=/Script/AnimGraph.AnimGraphNode_ComponentToLocalSpace Name="AnimGraphNode_ComponentToLocalSpace_CB18"
+   Begin Object Class=/Script/AnimGraph.AnimGraphNodeBinding_Base Name="AnimGraphNodeBinding_Base_0"
+   End Object
+   Begin Object Name="AnimGraphNodeBinding_Base_0"
+   End Object
+   ShowPinForProperties(0)=(PropertyName="ComponentPose",PropertyFriendlyName="Component Pose",CategoryName="Links",bShowPin=True)
+   Binding="/Script/AnimGraph.AnimGraphNodeBinding_Base'AnimGraphNodeBinding_Base_0'"
+   NodePosX=1120
+   NodePosY=-80
+   NodeGuid=BE770F0C0826424EBA638A85029EAA67
+   CustomProperties Pin (PinId=BBE24C295EEE4FD5B70B6CC693A924D9,PinName="ComponentPose",PinType.PinCategory="struct",PinType.PinSubCategoryObject="/Script/CoreUObject.ScriptStruct'/Script/Engine.ComponentSpacePoseLink'",DefaultValue="(LinkID=-1,SourceLinkID=-1)",LinkedTo=(AnimGraphNode_ModifyBone_CB17 16818D9F859D49C888BE721732A243F6,),)
+End Object

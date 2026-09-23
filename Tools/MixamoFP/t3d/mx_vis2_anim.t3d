@@ -1,0 +1,79 @@
+Begin Object Class=/Script/AnimGraph.AnimGraphNode_LocalToComponentSpace Name="AnimGraphNode_LocalToComponentSpace_FA01"
+   Begin Object Class=/Script/AnimGraph.AnimGraphNodeBinding_Base Name="AnimGraphNodeBinding_Base_0"
+   End Object
+   Begin Object Name="AnimGraphNodeBinding_Base_0"
+   End Object
+   ShowPinForProperties(0)=(PropertyName="LocalPose",PropertyFriendlyName="Local Pose",CategoryName="Links",bShowPin=True)
+   Binding="/Script/AnimGraph.AnimGraphNodeBinding_Base'AnimGraphNodeBinding_Base_0'"
+   NodePosX=0
+   NodePosY=0
+   NodeGuid=F0F75EB96F6A4262A50E8F128F700F62
+   CustomProperties Pin (PinId=911725E6326B41029EDFBEA6D2918E48,PinName="LocalPose",PinType.PinCategory="struct",PinType.PinSubCategoryObject="/Script/CoreUObject.ScriptStruct'/Script/Engine.PoseLink'",DefaultValue="(LinkID=-1,SourceLinkID=-1)",)
+   CustomProperties Pin (PinId=30E4998F6134425FA45EBCF1240EFA42,PinName="ComponentPose",Direction="EGPD_Output",PinType.PinCategory="struct",PinType.PinSubCategoryObject="/Script/CoreUObject.ScriptStruct'/Script/Engine.ComponentSpacePoseLink'",LinkedTo=(AnimGraphNode_ModifyBone_FA03 A110A58C289944EC89DB32FFD858E26B,),)
+End Object
+Begin Object Class=/Script/BlueprintGraph.K2Node_VariableGet Name="K2Node_VariableGet_FA02"
+   VariableReference=(MemberName="RootShift",bSelfContext=True)
+   NodePosX=20
+   NodePosY=180
+   NodeGuid=6AF31E872207478897D4B572F7551CD9
+   CustomProperties Pin (PinId=D0BCD9FB157E454F99EB12D3B22FBB25,PinName="RootShift",Direction="EGPD_Output",PinType.PinCategory="struct",PinType.PinSubCategoryObject="/Script/CoreUObject.ScriptStruct'/Script/CoreUObject.Vector'",LinkedTo=(AnimGraphNode_ModifyBone_FA03 D05EB373D8F446DAB7A1B84A29F28287,),)
+End Object
+Begin Object Class=/Script/AnimGraph.AnimGraphNode_ModifyBone Name="AnimGraphNode_ModifyBone_FA03"
+   Begin Object Class=/Script/AnimGraph.AnimGraphNodeBinding_Base Name="AnimGraphNodeBinding_Base_0"
+   End Object
+   Begin Object Name="AnimGraphNodeBinding_Base_0"
+   End Object
+   Node=(BoneToModify=(BoneName="root"),TranslationMode=BMM_Additive,TranslationSpace=BCS_ComponentSpace,AlphaBoolBlend=(BlendOption=Linear))
+   ShowPinForProperties(0)=(PropertyName="ComponentPose",PropertyFriendlyName="Component Pose",CategoryName="Links",bShowPin=True)
+   ShowPinForProperties(1)=(PropertyName="Alpha",PropertyFriendlyName="Alpha",CategoryName="Alpha",bShowPin=True,bCanToggleVisibility=True)
+   ShowPinForProperties(2)=(PropertyName="Translation",PropertyFriendlyName="Translation",CategoryName="Translation",bShowPin=True,bCanToggleVisibility=True)
+   ShowPinForProperties(3)=(PropertyName="Rotation",PropertyFriendlyName="Rotation",CategoryName="Rotation",bShowPin=False,bCanToggleVisibility=True)
+   ShowPinForProperties(4)=(PropertyName="Scale",PropertyFriendlyName="Scale",CategoryName="Scale",bCanToggleVisibility=True)
+   Binding="/Script/AnimGraph.AnimGraphNodeBinding_Base'AnimGraphNodeBinding_Base_0'"
+   NodePosX=260
+   NodePosY=0
+   NodeGuid=C3F4FF9F5A7D49729F1915AE64139F07
+   CustomProperties Pin (PinId=A110A58C289944EC89DB32FFD858E26B,PinName="ComponentPose",PinType.PinCategory="struct",PinType.PinSubCategoryObject="/Script/CoreUObject.ScriptStruct'/Script/Engine.ComponentSpacePoseLink'",DefaultValue="(LinkID=-1,SourceLinkID=-1)",LinkedTo=(AnimGraphNode_LocalToComponentSpace_FA01 30E4998F6134425FA45EBCF1240EFA42,),)
+   CustomProperties Pin (PinId=1EAF278DAB3D4339A042F8A6584119B7,PinName="Alpha",PinType.PinCategory="real",PinType.PinSubCategory="float",DefaultValue="1.000000",)
+   CustomProperties Pin (PinId=D05EB373D8F446DAB7A1B84A29F28287,PinName="Translation",PinType.PinCategory="struct",PinType.PinSubCategoryObject="/Script/CoreUObject.ScriptStruct'/Script/CoreUObject.Vector'",DefaultValue="0.000000,0.000000,0.000000",LinkedTo=(K2Node_VariableGet_FA02 D0BCD9FB157E454F99EB12D3B22FBB25,),)
+   CustomProperties Pin (PinId=734C145CEE4743759839F87503764B83,PinName="Pose",Direction="EGPD_Output",PinType.PinCategory="struct",PinType.PinSubCategoryObject="/Script/CoreUObject.ScriptStruct'/Script/Engine.ComponentSpacePoseLink'",LinkedTo=(AnimGraphNode_ModifyBone_FA05 B0FEDCB1561F4C5F9FE7FEED03CEB916,),)
+End Object
+Begin Object Class=/Script/BlueprintGraph.K2Node_VariableGet Name="K2Node_VariableGet_FA04"
+   VariableReference=(MemberName="LeanRot",bSelfContext=True)
+   NodePosX=300
+   NodePosY=200
+   NodeGuid=15C8CBFD27DD493A8A66E798F265226D
+   CustomProperties Pin (PinId=13ED4869F9934149A89219D6F8A875CC,PinName="LeanRot",Direction="EGPD_Output",PinType.PinCategory="struct",PinType.PinSubCategoryObject="/Script/CoreUObject.ScriptStruct'/Script/CoreUObject.Rotator'",LinkedTo=(AnimGraphNode_ModifyBone_FA05 16996C43F8E9498DA0A95CB4A8F98046,),)
+End Object
+Begin Object Class=/Script/AnimGraph.AnimGraphNode_ModifyBone Name="AnimGraphNode_ModifyBone_FA05"
+   Begin Object Class=/Script/AnimGraph.AnimGraphNodeBinding_Base Name="AnimGraphNodeBinding_Base_0"
+   End Object
+   Begin Object Name="AnimGraphNodeBinding_Base_0"
+   End Object
+   Node=(BoneToModify=(BoneName="spine_01"),RotationMode=BMM_Additive,RotationSpace=BCS_ComponentSpace,AlphaBoolBlend=(BlendOption=Linear))
+   ShowPinForProperties(0)=(PropertyName="ComponentPose",PropertyFriendlyName="Component Pose",CategoryName="Links",bShowPin=True)
+   ShowPinForProperties(1)=(PropertyName="Alpha",PropertyFriendlyName="Alpha",CategoryName="Alpha",bShowPin=True,bCanToggleVisibility=True)
+   ShowPinForProperties(2)=(PropertyName="Translation",PropertyFriendlyName="Translation",CategoryName="Translation",bShowPin=False,bCanToggleVisibility=True)
+   ShowPinForProperties(3)=(PropertyName="Rotation",PropertyFriendlyName="Rotation",CategoryName="Rotation",bShowPin=True,bCanToggleVisibility=True)
+   ShowPinForProperties(4)=(PropertyName="Scale",PropertyFriendlyName="Scale",CategoryName="Scale",bCanToggleVisibility=True)
+   Binding="/Script/AnimGraph.AnimGraphNodeBinding_Base'AnimGraphNodeBinding_Base_0'"
+   NodePosX=540
+   NodePosY=0
+   NodeGuid=9FF31163A6B9403EBFA0BBA1E4CC1EB7
+   CustomProperties Pin (PinId=B0FEDCB1561F4C5F9FE7FEED03CEB916,PinName="ComponentPose",PinType.PinCategory="struct",PinType.PinSubCategoryObject="/Script/CoreUObject.ScriptStruct'/Script/Engine.ComponentSpacePoseLink'",DefaultValue="(LinkID=-1,SourceLinkID=-1)",LinkedTo=(AnimGraphNode_ModifyBone_FA03 734C145CEE4743759839F87503764B83,),)
+   CustomProperties Pin (PinId=B393D8BC543748D4A56EAEF706CC2A11,PinName="Alpha",PinType.PinCategory="real",PinType.PinSubCategory="float",DefaultValue="1.000000",)
+   CustomProperties Pin (PinId=16996C43F8E9498DA0A95CB4A8F98046,PinName="Rotation",PinType.PinCategory="struct",PinType.PinSubCategoryObject="/Script/CoreUObject.ScriptStruct'/Script/CoreUObject.Rotator'",DefaultValue="0.000000,0.000000,0.000000",LinkedTo=(K2Node_VariableGet_FA04 13ED4869F9934149A89219D6F8A875CC,),)
+   CustomProperties Pin (PinId=4078808B415F4BA4B32A9F340ED12FAE,PinName="Pose",Direction="EGPD_Output",PinType.PinCategory="struct",PinType.PinSubCategoryObject="/Script/CoreUObject.ScriptStruct'/Script/Engine.ComponentSpacePoseLink'",LinkedTo=(AnimGraphNode_ComponentToLocalSpace_FA06 B38B844E36FA4EE19362C0B679FB32F6,),)
+End Object
+Begin Object Class=/Script/AnimGraph.AnimGraphNode_ComponentToLocalSpace Name="AnimGraphNode_ComponentToLocalSpace_FA06"
+   Begin Object Class=/Script/AnimGraph.AnimGraphNodeBinding_Base Name="AnimGraphNodeBinding_Base_0"
+   End Object
+   Begin Object Name="AnimGraphNodeBinding_Base_0"
+   End Object
+   ShowPinForProperties(0)=(PropertyName="ComponentPose",PropertyFriendlyName="Component Pose",CategoryName="Links",bShowPin=True)
+   Binding="/Script/AnimGraph.AnimGraphNodeBinding_Base'AnimGraphNodeBinding_Base_0'"
+   NodePosX=820
+   NodePosY=0
+   NodeGuid=F134B5383CA8467A8C501D780356A611
+   CustomProperties Pin (PinId=B38B844E36FA4EE19362C0B679FB32F6,PinName="ComponentPose",PinType.PinCategory="struct",PinType.PinSubCategoryObject="/Script/CoreUObject.ScriptStruct'/Script/Engine.ComponentSpacePoseLink'",DefaultValue="(LinkID=-1,SourceLinkID=-1)",LinkedTo=(AnimGraphNode_ModifyBone_FA05 4078808B415F4BA4B32A9F340ED12FAE,),)
+End Object

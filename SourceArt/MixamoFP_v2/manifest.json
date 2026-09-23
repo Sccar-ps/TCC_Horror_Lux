@@ -1,0 +1,124 @@
+{
+ "MX_Idle": {
+  "src": "Stop Walking (pose final)",
+  "speed_mx": 0.0,
+  "dir": 0,
+  "frames": 121,
+  "length_s": 4.0
+ },
+ "MX_Walk_F": {
+  "src": "Walk With Briefcase",
+  "speed_mx": 162.71,
+  "dir": 0,
+  "stride_k": 1.0,
+  "ik_miss_cm": 0.0,
+  "briefcase_fix": true,
+  "frames": 32,
+  "length_s": 1.0333
+ },
+ "MX_Walk_B": {
+  "src": "Walking Backward",
+  "speed_mx": 149.44,
+  "dir": 180,
+  "stride_k": 1.25,
+  "ik_miss_cm": 2.54,
+  "briefcase_fix": false,
+  "frames": 38,
+  "length_s": 1.2333
+ },
+ "MX_Walk_L": {
+  "src": "Walk Strafe Left",
+  "speed_mx": 76.79,
+  "dir": -90,
+  "stride_k": 1.25,
+  "ik_miss_cm": 0.72,
+  "briefcase_fix": false,
+  "frames": 45,
+  "length_s": 1.4667
+ },
+ "MX_Walk_R": {
+  "src": "Walk Strafe Right",
+  "speed_mx": 76.79,
+  "dir": 90,
+  "stride_k": 1.25,
+  "ik_miss_cm": 0.72,
+  "briefcase_fix": false,
+  "frames": 45,
+  "length_s": 1.4667
+ },
+ "MX_Run_L": {
+  "src": "run Left Strafe",
+  "speed_mx": 452.06,
+  "dir": -90,
+  "stride_k": 1.0,
+  "ik_miss_cm": 0.0,
+  "briefcase_fix": false,
+  "frames": 21,
+  "length_s": 0.6667
+ },
+ "MX_Run_R": {
+  "src": "run Right Strafe",
+  "speed_mx": 452.06,
+  "dir": 90,
+  "stride_k": 1.0,
+  "ik_miss_cm": 0.0,
+  "briefcase_fix": false,
+  "frames": 21,
+  "length_s": 0.6667
+ },
+ "MX_Crouch_Idle": {
+  "src": "Crouch Idle",
+  "speed_mx": 0.0,
+  "dir": 0,
+  "frames": 51,
+  "length_s": 1.6667
+ },
+ "MX_Crouch_F": {
+  "src": "Crouched Walking",
+  "speed_mx": 85.46,
+  "dir": 0,
+  "stride_k": 0.6,
+  "ik_miss_cm": 0.0,
+  "hips_drop": 25.2,
+  "frames": 32,
+  "length_s": 1.0333
+ },
+ "MX_Crouch_B": {
+  "src": "Crouched Walking (invertido)",
+  "speed_mx": 85.46,
+  "dir": 180,
+  "stride_k": 0.6,
+  "ik_miss_cm": 0.0,
+  "hips_drop": 25.2,
+  "frames": 32,
+  "length_s": 1.0333
+ },
+ "MX_Crouch_L": {
+  "src": "Walk Strafe Left (agachado sintetico)",
+  "speed_mx": 79.86,
+  "dir": -90,
+  "stride_k": 1.3,
+  "ik_miss_cm": 0.0,
+  "hips_drop": 38.4,
+  "frames": 45,
+  "length_s": 1.4667
+ },
+ "MX_Crouch_R": {
+  "src": "Walk Strafe Right (agachado sintetico)",
+  "speed_mx": 79.86,
+  "dir": 90,
+  "stride_k": 1.3,
+  "ik_miss_cm": 0.0,
+  "hips_drop": 38.5,
+  "frames": 45,
+  "length_s": 1.4667
+ },
+ "MX_Fall": {
+  "src": "Crouched To Standing (50%%)",
+  "speed_mx": 0.0,
+  "dir": 0,
+  "placeholder": true,
+  "frames": 31,
+  "length_s": 1.0
+ }
+}
