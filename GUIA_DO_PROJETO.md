@@ -24,6 +24,7 @@ Configurado em `Config/DefaultEngine.ini`, seção `[/Script/Engine.RendererSett
 - **Lumen** para GI e reflexos (`r.DynamicGlobalIlluminationMethod=1`, `r.ReflectionMethod=1`)
 - **Virtual Shadow Maps** (`r.Shadow.Virtual.Enable=1`)
 - **Local Exposure** com contraste reduzido em sombra e realce (`0.8` nos dois) — importante num jogo escuro
+- **Pré-exposição da luz em cache** `r.EyeAdaptation.CachedLightingPreExposure=1` (seção `[SystemSettings]`): faixa segura de exposição [−11, 9]. Todo PostProcessVolume precisa respeitar `Min EV100 − Exposure Compensation ≥ −11` e `Max EV100 − Exposure Compensation ≤ 9`, senão volta o aviso *"Cached lighting in Lumen ... is going to be clipped"*. Detalhes e scripts em `Tools/Lighting/GUIA_ILUMINACAO_EXPOSICAO.md`
 - Mesh Distance Fields ligado
 - **DirectX 12 / Shader Model 6**, alvo Desktop, qualidade Máxima
 
