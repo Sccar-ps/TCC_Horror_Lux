@@ -4,7 +4,7 @@
 +EditProfiles=(Name="Trigger",CustomResponses=((Channel=Projectile, Response=ECR_Ignore)))
 
 [/Script/EngineSettings.GameMapsSettings]
-EditorStartupMap=/Game/Masion/Mapa_B.Mapa_B
+EditorStartupMap=/Game/FPMovement/Demo/Maps/L_Default_DevMap.L_Default_DevMap
 LocalMapOptions=
 TransitionMap=None
 bUseSplitscreen=True
@@ -13,7 +13,7 @@ ThreePlayerSplitscreenLayout=FavorTop
 FourPlayerSplitscreenLayout=Grid
 bOffsetPlayerGamepadIds=False
 GameInstanceClass=/Script/Engine.GameInstance
-GameDefaultMap=/Game/Masion/Mapa_B.Mapa_B
+GameDefaultMap=/Game/FPMovement/Demo/Maps/L_Default_DevMap.L_Default_DevMap
 ServerDefaultMap=/Engine/Maps/Entry.Entry
 GlobalDefaultGameMode=/Game/FPMovement/Player/Blueprints/BP_PlayerMode.BP_PlayerMode_C
 GlobalDefaultServerGameMode=None
