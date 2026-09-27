@@ -122,6 +122,7 @@ def tipos():
     return t
 
 
+# 27/09: GanhoBackrooms 1.0 -> 0.75 -> 0.55 (~-5,2 dB); 17:33 som ambiente (vento) mais alto: GanhoVento 1.5 (+3,5 dB)
 def lista_vars(cues):
     return [  # nome, tipo, editavel, padrao
         ("bCoracaoAtivo", "bool", True, True), ("bVentoAtivo", "bool", True, True), ("bBackroomsAtivo", "bool", True, True),
@@ -132,7 +133,7 @@ def lista_vars(cues):
         ("BackroomsCue", "snd[]", True, cues), ("CoracaoRitmo", "real[]", True, RITMO),
         ("CoracaoPitch", "real[]", True, [1.0, 1.04, 1.08, 1.13, 1.18]), ("NomeParamCoracao", "name", True, PARAM),
         ("CoracaoTipo", "string", True, TIPO),
-        ("GanhoCoracao", "real", True, 1.0), ("GanhoVento", "real", True, 1.0), ("GanhoBackrooms", "real", True, 1.0),
+        ("GanhoCoracao", "real", True, 1.0), ("GanhoVento", "real", True, 1.5), ("GanhoBackrooms", "real", True, 0.55),
         ("GanhoMestre", "real", True, 1.0), ("VolumeMax", "real", True, 0.6),
         ("TempoInicio", "real", True, 3.0), ("TempoVolume", "real", True, 4.0), ("TempoCrossfade", "real", True, 6.0),
         ("TempoParada", "real", True, 3.0), ("VelPitch", "real", True, 0.04), ("VelRitmo", "real", True, 0.06 * RITMO[0]),

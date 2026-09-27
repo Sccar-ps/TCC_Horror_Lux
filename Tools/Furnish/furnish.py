@@ -673,9 +673,9 @@ def sons():
     amb = "/Game/Masion/LUX/Audio/SW_LUX_Amb_Memorias"
     wind = "/Game/FPMovement/Assets/Audio/Environment/SW_Wind_calm"
     if unreal.EditorAssetLibrary.does_asset_exist(amb):
-        sound("LUX_Som_Ambiente", amb, -3000, -400, 200, 0.22, False)
+        sound("LUX_Som_Ambiente", amb, -3000, -400, 200, 0.33, False)  # 27/09: 0.22 -> 0.33 (ambiente x1.5, pedido do Gabriel)
     for i, (x, y) in enumerate(((-3390, 70), (-3830, -1120), (-2075, -1760))):
-        sound("LUX_Som_Vento%d" % (i + 1), wind, x, y, 200, 0.35, True, 120, 650)
+        sound("LUX_Som_Vento%d" % (i + 1), wind, x, y, 200, 0.53, True, 120, 650)  # 27/09: 0.35 -> 0.53 (x1.5)
 
 
 def prepare_audio():

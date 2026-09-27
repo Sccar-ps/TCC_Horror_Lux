@@ -44,6 +44,8 @@ SONS = {
     "HL": "/Game/FPMovement/Assets/Audio/Abilitys/Flashlight/SW_Flashlight_Hit",
     "SCD": "/Game/FPMovement/Assets/Audio/Abilitys/Door/SW_Close_Door",
     "PASSOS": "/Game/FPMovement/Assets/Audio/Character/Footsteps/SoundCues/Footsteps_Metal_Cue",
+    "MADEIRA": "/Game/FPMovement/Assets/Audio/Character/Footsteps/SoundCues/Footsteps_Wood_Cue",
+    "VULTO_PASSO": "/Game/Masion/LUX/Loop/Eventos/SC_LuxVultoPasso",  # criado pelo Tools/Loop/add_vulto_corre.py (rode antes)
     "PORTAL": "/Game/Backrooms_Ambience/Cues/2_FULL_Backrooms_Portal__by_juanjo_sound__Cue",
     "MEMORIES": "/Game/Backrooms_Ambience/Cues/5_FULL_Backrooms_Memories__by_juanjo_sound__Cue",
     "MIRAGE": "/Game/Backrooms_Ambience/Cues/7_FULL_Backrooms_Mirage__by_juanjo_sound__Cue",
@@ -315,7 +317,47 @@ def ensure_assets():
         BEL.add_member_variable(bp, "Linhas", BEL.get_array_type(BEL.get_basic_type_by_name("string")))
         BEL.compile_blueprint(bp)
         criados.append(bp)
+    criados += ensure_vulto()
     return criados
+
+
+def ensure_vulto():
+    """SM_LuxVulto (Geometry Script: malha do SKM_Manny_Simple na pose de referencia), M_LuxVulto (unlit) e MI_LuxVulto."""
+    out = []
+    MEL = unreal.MaterialEditingLibrary
+    if not EAL.does_asset_exist(VULTO_M):
+        m = unreal.AssetToolsHelpers.get_asset_tools().create_asset("M_LuxVulto", DIR, unreal.Material, unreal.MaterialFactoryNew())
+        m.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_UNLIT)
+        cor = MEL.create_material_expression(m, unreal.MaterialExpressionVectorParameter, -400, 0)
+        cor.set_editor_property("parameter_name", "Cor")
+        cor.set_editor_property("default_value", unreal.LinearColor(*VULTO_COR, 1.0))
+        MEL.connect_material_property(cor, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+        MEL.recompile_material(m)
+        out.append(m)
+    if not EAL.does_asset_exist(VULTO_MI):
+        mi = unreal.AssetToolsHelpers.get_asset_tools().create_asset("MI_LuxVulto", DIR, unreal.MaterialInstanceConstant,
+                                                                     unreal.MaterialInstanceConstantFactoryNew())
+        mi.set_editor_property("parent", EAL.load_asset(VULTO_M))
+        out.append(mi)
+    mi = EAL.load_asset(VULTO_MI)
+    atual = MEL.get_material_instance_vector_parameter_value(mi, "Cor")
+    if max(abs(atual.r - VULTO_COR[0]), abs(atual.g - VULTO_COR[1]), abs(atual.b - VULTO_COR[2])) > 1e-6:
+        MEL.set_material_instance_vector_parameter_value(mi, "Cor", unreal.LinearColor(*VULTO_COR, 1.0))
+        MEL.update_material_instance(mi)
+    if not EAL.does_asset_exist(VULTO_SM):
+        skm = EAL.load_asset("/Game/FreeAnimationLibrary/Demo/Characters/Mannequins/Meshes/SKM_Manny_Simple")
+        dm = unreal.DynamicMesh()
+        unreal.GeometryScript_AssetUtils.copy_mesh_from_skeletal_mesh(skm, dm, unreal.GeometryScriptCopyMeshFromAssetOptions(),
+                                                                     unreal.GeometryScriptMeshReadLOD())
+        op = unreal.GeometryScriptCreateNewStaticMeshAssetOptions()
+        op.set_editor_property("enable_collision", False)
+        unreal.GeometryScript_NewAssetUtils.create_new_static_mesh_asset_from_mesh(dm, VULTO_SM, op)
+        out.append(EAL.load_asset(VULTO_SM))
+    sm = EAL.load_asset(VULTO_SM)
+    for i in range(len(sm.get_editor_property("static_materials"))):
+        if sm.get_material(i) != mi:
+            sm.set_material(i, mi)
+    return out
 
 
 # ------------------------------------------------------------------ BP_LuxLoopEvent: variaveis e funcoes
@@ -355,7 +397,17 @@ def vars_evento():
 # no mesmo instante e o susto perde a janela na caminhada direta)
 MOTIVOS_RESERVA = ["gap", "vista", "costas", "nao_visto", "pos_troca", "externo", "distorcao", "aguarda_marca"]
 TAG_LUZES = "LUX_EV_Arandela"
-LUZES_SUSTO = ["LUX_Luz_Sala_Candelabro", "LUX_Luz_Sala_Candelabro2", "LUX_Luz_Sala_Candelabro3"]
+LUZES_SUSTO = ["LUX_Luz_Sala_Candelabro", "LUX_Luz_Sala_Candelabro2", "LUX_Luz_Sala_Candelabro3",
+               "LUX_Luz_Sala_Abajur"]  # 27/09: abajur (0.63) junto, os candelabros (0.05) sozinhos passavam despercebidos
+GAP_MIN_S = 3.0  # 27/09: gap do EVENTS_Hub (instancia) 10 -> 5 -> 3 s (teste do Gabriel: sustos e barulhos precisam caber)
+VOLUME_MAX = 2.1  # 27/09 17:33: 1.5 -> 2.1 (sustos x1.4 de novo, pedido do Gabriel). 27/09: VolumeMax do EVENTS_Hub (instancia) 0.8 -> 1.5; sustos com som x1.8 (pedido do Gabriel: mais altos)
+TREMOR_MAX = 1.5  # 27/09: EscalaTremorMax do EVENTS_Hub (instancia); o estrondo a 0.5 passava despercebido
+VULTO_SM = DIR + "/SM_LuxVulto"   # silhueta humana (pose de referencia do SKM_Manny_Simple) no lugar do cilindro
+VULTO_M = DIR + "/M_LuxVulto"     # unlit; a silhueta preta sumia no corredor escuro (capturas 27/09)
+VULTO_MI = DIR + "/MI_LuxVulto"
+VULTO_COR = (0.004, 0.0045, 0.0055)  # cinza-sombra levemente azulado, nada vermelho
+CADEIRA_YAW_BASE = 180.0  # LOOPC_L4_Cadeira comeca virada para a parede do piano...
+CADEIRA_ALVO = (-2330.0, -1800.0)  # ...e gira para ficar de frente para a regiao entre ela e a LOOP_PortaSala
 
 
 FUNC_EVT = [("Inicializar", []), ("Aplica", [("L", "int")]), ("TentarDisparar", []), ("Repetir", [("M", "string")]),
@@ -1474,6 +1526,8 @@ def plano(g):
         ev("MARCA_Distorcao", 1, 2, [3, 5], ((gl.x, gl.y, gl.z), (gx.x, gx.y, gx.z)), None, BloqueioS=13.6 + 1.0),
         ev("MARCA_Batida", 2, 2, [4], ((gl.x, gl.y, gl.z), (gx.x, gx.y, gx.z)), None, BloqueioS=0.12 + 1.26 + 0.2 + 1.0)]
     # EV 11: entre a porta do quarto e o gatilho (loop 2 pode ficar a montante)
+    # EV 11: entre a porta do quarto e o gatilho. 27/09: o vulto agora dispara mais perto (~6 m), depois do gap; as batidas
+    # voltam a vir primeiro (~3 s)
     y0, y1 = y_gat_max + 20.0, d7.y
     bat = ev("EV_Bat_Quarto", 11, 0, [2], ((d7.x, (y0 + y1) / 2, 110.0), (mw, (y1 - y0) / 2, 110.0)), (d7.x, d7.y + 60.0, 110.0),
              Som="HL", Repeticoes=3, IntervaloRepS=0.45, Pitch=0.5, Volume=0.35, JanelaS=20.0, DistMaxJogador=800.0)
@@ -1483,15 +1537,19 @@ def plano(g):
     y60 = y_gat_min + 0.6 * (far_y - y_gat_min)
     # 27/09: a memoria (1a metade apos o gatilho) toca primeiro; o gap de 10 s poe o sussurro na entrada da sala,
     # com o som atras do jogador, no fim do corredor
-    sus = ev("EV_Sussurro_Corredor", 14, 0, [4], ((-2750.0, -870.0, 110.0), (120.0, 100.0, 110.0)), (-3275.0, -420.0, 110.0),
-             Som="PORTAL", Volume=0.3, DuracaoMaxS=3.5, FadeS=1.5, bSoQuandoDeCostas=True, CosCostas=-0.2, JanelaS=20.0, DistMaxJogador=1100.0)
+    # 27/09 (etapa 4): caixa menor, termina em y -900 para a caixa da cadeira (susto do loop 4) comecar logo depois
+    sus = ev("EV_Sussurro_Corredor", 14, 0, [4], ((-2800.0, -820.0, 110.0), (100.0, 80.0, 110.0)), (-3275.0, -420.0, 110.0),
+             Som="PORTAL", Volume=0.3, DuracaoMaxS=3.5, FadeS=1.5, bSoQuandoDeCostas=True, CosCostas=-0.2, JanelaS=20.0, DistMaxJogador=1100.0,
+             InicioS=54.5)  # 27/09: o inicio da faixa e fade-in (2 s: rms -34.1/pico -18.5 dBFS); 54.5 s: rms -18.3/pico -3.9
     # EV 15: 1a metade depois do gatilho; som 250 cm dentro do quarto
     ym = (yl + y60 + 80.0 + 20.0) / 2
     mem = ev("EV_Memoria_Quarto", 15, 0, [4], ((-3275.0, (yl + (y60 + 100.0)) / 2, 110.0), (mw, (yl - (y60 + 100.0)) / 2, 110.0)),
-             (d7.x, d7.y + 250.0, 110.0), Som="MEMORIES", Volume=0.25, DuracaoMaxS=5.0, FadeS=2.0, JanelaS=25.0, DistMaxJogador=1000.0)
+             (d7.x, d7.y + 250.0, 110.0), Som="MEMORIES", Volume=0.25, DuracaoMaxS=5.0, FadeS=2.0, JanelaS=25.0, DistMaxJogador=1000.0,
+             InicioS=96.5)  # 27/09: 2 s iniciais rms -33.3/pico -14.8; 96.5 s: rms -19.2/pico -4.6, crescendo (-18.1 nos 2 s seguintes)
     # EV 16: LOOP_PortaSala + 300 cm rumo a Sala; som 150 cm atras da porta
     por = ev("EV_Portal_Sala", 16, 0, [5], ((ps.x, ps.y + 300.0, 110.0), (150.0, 100.0, 110.0)), (ps.x, ps.y - 150.0, 110.0),
-             Som="MIRAGE", Pitch=0.7, Volume=0.3, DuracaoMaxS=4.0, FadeS=2.0, JanelaS=8.0, DistMaxJogador=900.0)
+             Som="MIRAGE", Pitch=0.7, Volume=0.3, DuracaoMaxS=4.0, FadeS=2.0, JanelaS=8.0, DistMaxJogador=900.0,
+             InicioS=40.5)  # 27/09: 2 s iniciais rms -48.8/pico -35.5; 40.5 s: rms -17.8/pico -6.2, crescendo (-17.3)
     barulhos = [bat, sus, mem, por]
     if ESCRITORIO_NO_LUGAR_DA_COZINHA:
         esc = escritorio()
@@ -1507,29 +1565,39 @@ def plano(g):
         dmin = min(600.0, 0.45 * comprimento)
         y_meio = (y_perto + y_longe) / 2
         cad = g["LOOPC_L4_Cadeira"].get_actor_location()
-        entrada_sala = (-3050.0, -600.0)   # limiar corredor -> sala (juncao medida por traces)
-        alvo_yaw = math.degrees(math.atan2(entrada_sala[1] - cad.y, entrada_sala[0] - cad.x))
-        giro = alvo_yaw - g["LOOPC_L4_Cadeira"].get_actor_rotation().yaw
-        giro = (giro + 180.0) % 360.0 - 180.0
+        alvo_yaw = math.degrees(math.atan2(CADEIRA_ALVO[1] - cad.y, CADEIRA_ALVO[0] - cad.x))
+        giro = (alvo_yaw - CADEIRA_YAW_BASE + 180.0) % 360.0 - 180.0
         sustos = [
-            # vulto no fim do corredor, 80 cm antes da ponta longe; caixa = metade perto (depois do gatilho)
-            ev("EV_Susto_Vulto", 21, 1, [2], ((-3275.0, (y_gat_min - 20.0 + y_meio) / 2, 110.0), (mw, (y_gat_min - 20.0 - y_meio) / 2, 110.0)),
-               None, aparicao=(-3275.0, y_longe + 80.0), bAparicao=True, AparicaoS=0.5, bSoQuandoOlhando=True, CosOlhar=0.94,
-               bExigirLinhaVisao=True, AparicaoDistMin=round(dmin, 1), JanelaS=20.0),
-            # piscar: o corredor nao tem outras luzes (arandelas 3/5 ja apagam no loop 3; RectLight5/7 estao em 0) e o loop 3
-            # fica bloqueado ~17 s pela distorcao -> candelabros da sala perto da porta, no caminho depois do bloqueio
-            ev("EV_Susto_Arandelas", 22, 1, [3], ((-2480.0, -1400.0, 110.0), (150.0, 150.0, 110.0)), (-2955.0, -1890.0, 160.0),
+            # vulto (27/09, pedido do Gabriel): a figura preta com aura que CORRE da esquerda para a direita no fim do corredor
+            # e o LUX_Vulto_Figura (Tools/Loop/add_vulto_corre.py), que dispara quando este evento dispara. A silhueta
+            # estatica sai (bAparicao false, Aparicao invisivel). PontoSom = meio do caminho da corrida, na altura do peito
+            # (alvo do "olhando" e dos passos de madeira). Caixa mais perto: o jogador entra a ~7 m e sai a ~5 m do caminho
+            ev("EV_Susto_Vulto", 21, 1, [2], ((-3275.0, 40.0, 110.0), (mw, 100.0, 110.0)), (-3215.0, -560.0, 130.0),
+               aparicao=(-3250.0, -560.0), bAparicao=False, bSoQuandoOlhando=True, CosOlhar=0.90, bExigirLinhaVisao=True,
+               JanelaS=30.0, Som="VULTO_PASSO", Repeticoes=4, IntervaloRepS=0.2, Pitch=1.0, Volume=1.1,
+               SomCamada=None, RelCamada=0.0,  # 17:33: passos altos e pesados (o peso esta no proprio SC_LuxVultoPasso)
+               DeslocPorRep=(70.0, 0.0, 0.0)),
+            # 27/09 17:33: InicioS 51.4 -> o inicio da faixa BROKEN e quase mudo (-31.5 dBFS nos 2.5 s iniciais)
+            # piscar: o corredor nao tem outras luzes (arandelas 3/5 ja apagam no loop 3; RectLight5/7 estao em 0) -> candelabros
+            # da sala perto da porta (desvio aprovado 27/09). Caixa na entrada da sala: o jogador entra nela ainda durante o
+            # bloqueio da distorcao, o susto reserva a vez e dispara quando o bloqueio acaba, antes do rangido
+            ev("EV_Susto_Arandelas", 22, 1, [3], ((-2600.0, -1130.0, 110.0), (150.0, 150.0, 110.0)), (-2955.0, -1890.0, 160.0),
                TagLuzes=TAG_LUZES, PadraoPiscar=[0.30, 0.45, 0.25, 0.60, 0.35, 0.40], bApagarNoFim=True, bSomNoFimDoPiscar=True,
-               Som="BROKEN", Pitch=1.25, Volume=0.45, SomCamada="HL", PitchCamada=0.4, RelCamada=0.75, DuracaoMaxS=2.0, FadeS=0.8,
+               Som="BROKEN", Pitch=1.25, Volume=1.13, SomCamada="HL", PitchCamada=0.4, RelCamada=0.75, DuracaoMaxS=2.0, FadeS=0.8, InicioS=51.4,
                JanelaS=30.0, DistMaxJogador=1100.0),
-            # cadeira do loop 4 gira para o limiar corredor->sala depois de ser vista, quando o jogador esta de costas
-            ev("EV_Susto_Cadeira", 23, 1, [4], ((-2450.0, -1420.0, 110.0), (220.0, 330.0, 110.0)), (cad.x, cad.y, 60.0),
-               AlvoGirar="LOOPC_L4_Cadeira", GiroYaw=round(giro, 1), bExigirVistoAntes=True, bSoQuandoDeCostas=True, CosCostas=-0.3,
-               Som="SCD", Pitch=0.45, Volume=0.15, JanelaS=20.0, DistMaxJogador=900.0),
+            # cadeira do loop 4 gira para o limiar corredor->sala depois de ser vista, quando o jogador esta de costas.
+            # Caixa comeca 5 cm depois da do sussurro: o jogador entra nela antes do sussurro sair do gap e o susto reserva a vez
+            # 27/09: comeca virada para o piano e gira para ficar de frente para quem vai para a porta; dispara assim que ela sai
+            # da tela (CosCostas 0.3, ~72 graus), antes de o jogador chegar perto da porta; rangido 0.35 para ele se virar
+            ev("EV_Susto_Cadeira", 23, 1, [4], ((-2465.0, -1327.5, 110.0), (235.0, 422.5, 110.0)), (cad.x, cad.y, 60.0),
+               AlvoGirar="LOOPC_L4_Cadeira", GiroYaw=round(giro, 1), bExigirVistoAntes=True, bSoQuandoDeCostas=True, CosCostas=0.3,
+               Som="SCD", Pitch=0.45, Volume=0.88, JanelaS=25.0, DistMaxJogador=900.0),
             # estrondo entre a sala e a porta, som no limiar corredor->sala, atras do jogador
-            ev("EV_Susto_Estrondo", 24, 1, [5], ((-2500.0, -1300.0, 110.0), (150.0, 150.0, 110.0)), (entrada_sala[0], entrada_sala[1], 110.0),
-               Som="SCD", Pitch=0.55, Volume=0.45, SomCamada="HL", PitchCamada=0.35, RelCamada=0.75, EscalaTremor=0.5,
-               bSoQuandoDeCostas=True, CosCostas=-0.5, JanelaS=25.0, DistMaxJogador=1100.0)]
+            # 27/09: disparou a 7 m no teste e passou despercebido. Som na entrada da sala (~4 m atras de quem vai para a porta),
+            # tremor 1.5, costas relaxado (-0.2) e caixa cobrindo a entrada da sala inteira
+            ev("EV_Susto_Estrondo", 24, 1, [5], ((-2650.0, -1100.0, 110.0), (250.0, 250.0, 110.0)), (-2800.0, -950.0, 110.0),
+               Som="SCD", Pitch=0.55, Volume=1.13, SomCamada="HL", PitchCamada=0.35, RelCamada=0.75, EscalaTremor=1.5,
+               bSoQuandoDeCostas=True, CosCostas=-0.2, JanelaS=25.0, DistMaxJogador=1100.0)]
     return marcas + barulhos + sustos
 
 
@@ -1546,11 +1614,13 @@ def aplica_cfg(a, e):
     a.set_editor_property("IdNum", e["IdNum"])
     a.set_editor_property("Categoria", e["Categoria"])
     a.set_editor_property("Loops", e["Loops"])
+    if list(a.get_editor_property("MotivosReserva")) != MOTIVOS_RESERVA:
+        a.set_editor_property("MotivosReserva", MOTIVOS_RESERVA)  # instancias ja no mapa guardam a lista antiga
     for k, v in e["cfg"].items():
         if k == "aparicao":
             continue
         if k in ("Som", "SomCamada"):
-            v = EAL.load_asset(SONS[v])
+            v = EAL.load_asset(SONS[v]) if v else None
         if k == "DeslocPorRep":
             v = unreal.Vector(*v)
         if k == "AlvoGirar":
@@ -1561,11 +1631,20 @@ def aplica_cfg(a, e):
     if "aparicao" in e["cfg"]:
         x, y = e["cfg"]["aparicao"]
         ap = [c for c in a.get_components_by_class(unreal.StaticMeshComponent) if c.get_name().startswith("Aparicao")][0]
-        ap.set_world_scale3d(unreal.Vector(0.45, 0.30, 1.75))
+        sm, mi = EAL.load_asset(VULTO_SM), EAL.load_asset(VULTO_MI)
+        if ap.get_editor_property("static_mesh") != sm:
+            ap.set_static_mesh(sm)
+        for i in range(ap.get_num_materials()):
+            if ap.get_material(i) != mi:
+                ap.set_material(i, mi)
+        ap.set_world_scale3d(unreal.Vector(1, 1, 1))
         chao = unreal.SystemLibrary.line_trace_single(a.get_world(), unreal.Vector(x, y, 150), unreal.Vector(x, y, -100),
                                                       unreal.TraceTypeQuery.TRACE_TYPE_QUERY1, False, [a], unreal.DrawDebugTrace.NONE, True)
         z0 = chao.to_tuple()[4].z if chao else 0.0
-        ap.set_world_location(unreal.Vector(x, y, z0 + 50.0 * 1.75), False, True)  # Cylinder: 100 de altura, centro no meio
+        # pe no chao; a malha do manequim olha para +Y (para quem vem da Chegada)
+        ap.set_world_location_and_rotation(unreal.Vector(x, y, z0), unreal.Rotator(0, 0, 0), False, True)
+        ap.set_hidden_in_game(True)
+        ap.set_visibility(bool(e["cfg"].get("bAparicao")), False)  # 27/09: silhueta estatica desligada (a figura corre)
     snd = a.get_editor_property("Som")
     if snd:
         # um som curto termina antes do corte: Dur <= duracao / pitch (pitch grave alonga o som)
@@ -1590,6 +1669,16 @@ def ensure_atores(hub_bp, evt_bp, g):
         h.set_folder_path(FOLDER)
         h.set_editor_property("tags", [unreal.Name(TAG)])
         mudou.append("EVENTS_Hub")
+    hub_i = [a for a in atores() if a.get_class().get_name().startswith("BP_LuxEventHub")][0]
+    if abs(hub_i.get_editor_property("GapMinS") - GAP_MIN_S) > 1e-6:
+        hub_i.set_editor_property("GapMinS", GAP_MIN_S)
+        mudou.append("EVENTS_Hub.GapMinS=%.1f" % GAP_MIN_S)
+    if abs(hub_i.get_editor_property("VolumeMax") - VOLUME_MAX) > 1e-6:
+        hub_i.set_editor_property("VolumeMax", VOLUME_MAX)
+        mudou.append("EVENTS_Hub.VolumeMax=%.1f" % VOLUME_MAX)
+    if abs(hub_i.get_editor_property("EscalaTremorMax") - TREMOR_MAX) > 1e-6:
+        hub_i.set_editor_property("EscalaTremorMax", TREMOR_MAX)
+        mudou.append("EVENTS_Hub.EscalaTremorMax=%.1f" % TREMOR_MAX)
     if INSTALAR_SUSTOS:
         mudou += prepara_sustos()
     existentes = {a.get_actor_label(): a for a in atores() if a.get_class().get_name().startswith("BP_LuxLoopEvent")}
@@ -1643,6 +1732,10 @@ def prepara_sustos():
     if "MOVABLE" not in str(rc.get_editor_property("mobility")):
         rc.set_editor_property("mobility", unreal.ComponentMobility.MOVABLE)
         mud.append("LOOPC_L4_Cadeira -> Movable")
+    r = cad.get_actor_rotation()
+    if abs(((r.yaw - CADEIRA_YAW_BASE) + 180.0) % 360.0 - 180.0) > 0.5:
+        cad.set_actor_rotation(unreal.Rotator(r.roll, r.pitch, CADEIRA_YAW_BASE), False)
+        mud.append("LOOPC_L4_Cadeira yaw %.1f -> %.1f" % (r.yaw, CADEIRA_YAW_BASE))
     evt = EAL.load_asset(EVT)
     cdo = unreal.get_default_object(evt.generated_class())
     if list(cdo.get_editor_property("MotivosReserva")) != MOTIVOS_RESERVA:
@@ -1664,9 +1757,12 @@ def eventos_mapa():
              "som": ps.get_world_location()}
         for k in ("Id", "IdNum", "Categoria", "Loops", "JanelaS", "DistMaxJogador", "bSoQuandoDeCostas", "CosCostas",
                   "bSoQuandoOlhando", "bExigirVistoAntes", "Volume", "RelCamada", "Som", "SomCamada", "InicioS", "DuracaoMaxS",
-                  "BloqueioS", "Probabilidade", "AtrasoS", "PadraoPiscar", "Repeticoes", "IntervaloRepS"):
+                  "BloqueioS", "Probabilidade", "AtrasoS", "PadraoPiscar", "Repeticoes", "IntervaloRepS",
+                  "bAparicao", "CosOlhar", "AparicaoDistMin", "bExigirLinhaVisao", "AlvoGirar", "GiroYaw", "TagLuzes"):
             e[k] = a.get_editor_property(k)
         e["Loops"] = list(e["Loops"])
+        ap = [c for c in a.get_components_by_class(unreal.StaticMeshComponent) if c.get_name().startswith("Aparicao")][0]
+        e["alvo_olhar"] = unreal.SystemLibrary.get_component_bounds(ap)[0] if e["bAparicao"] else e["som"]
         out.append(e)
     return out
 
@@ -1682,18 +1778,47 @@ def dentro(e, x, y):
     return abs(x - e["c"].x) <= e["x"].x and abs(y - e["c"].y) <= e["x"].y
 
 
-def simular(evs, g, v=150.0, semente=None):
-    """Replica as regras do hub/evento andando no caminho a v cm/s, 1 vez por loop. Retorna {loop: [(id, acao, t, motivo)]}."""
+def olhando(e, pos, ang):
+    """Olhando() do evento: camera na altura do olho olhando para onde anda; cos >= CosOlhar, distancia minima da aparicao
+    e linha de visao (trace de verdade no mapa)."""
+    cam = unreal.Vector(pos[0], pos[1], ALTURA_OLHO)
+    alvo = e["alvo_olhar"]
+    d = alvo - cam
+    n = d.normal()
+    if math.cos(ang) * n.x + math.sin(ang) * n.y < e["CosOlhar"]:
+        return False
+    if e["bAparicao"] and d.length() < e["AparicaoDistMin"]:
+        return False
+    if e["bExigirLinhaVisao"]:
+        hit = unreal.SystemLibrary.line_trace_single(e["a"].get_world(), cam + n * 50.0, alvo, unreal.TraceTypeQuery.TRACE_TYPE_QUERY1,
+                                                     False, [], unreal.DrawDebugTrace.NONE, True)
+        if hit:
+            return False
+    return True
+
+
+# 27/09: corrida desligada (Tools/Player/disable_sprint.py): perfil "correndo" fica fora (N/A)
+PERFIS = (("andando", 150.0, False), ("olhando_em_volta", 150.0, True))
+
+
+def simular(evs, g, v=150.0, varre=False):
+    """Replica as regras do hub/evento andando no caminho a v cm/s, 1 vez por loop. Retorna {loop: [(id, acao, t, motivo)]}.
+    varre=True: a camera oscila +-60 graus em volta da direcao da caminhada (periodo 4 s).
+    Barulhos sao avaliados antes dos sustos em cada passo (pior caso para a reserva).
+    FIRED de susto leva a distancia do jogador ate o som/aparicao; a cadeira leva tambem se foi vista depois de girar."""
+    evs = sorted(evs, key=lambda e: e["Categoria"])
     pts = caminho(g)
     gl, gx = g["gatilho"]
-    hub_cfg = {"gap": 10.0, "post": 3.0, "maxb": 3, "maxs": 1}
+    hub_i = [a for a in atores() if a.get_class().get_name().startswith("BP_LuxEventHub")][0]
+    hub_cfg = {"gap": hub_i.get_editor_property("GapMinS"), "post": hub_i.get_editor_property("JanelaPosTrocaS"),
+               "maxb": hub_i.get_editor_property("MaxBarulhosPorLoop"), "maxs": hub_i.get_editor_property("MaxSustosPorLoop")}
     res = {}
     for L in range(1, 6):
         t, dt = 0.0, 0.25
-        seg, pos, ang = 0, list(pts[0]), 0.0
+        seg, pos, ang, ang_passo = 0, list(pts[0]), 0.0, 0.0
         bloqueio, ultimo, cont = -1000.0, -1000.0, {0: 0, 1: 0}
         marca_pend = any(e["Categoria"] == 2 and L in e["Loops"] for e in evs)
-        dist_ate = -1.0
+        dist_ate, reserva_ate = -1.0, -1.0
         st = {e["label"]: {"tent": None, "feito": False, "entrada": None} for e in evs}
         out = []
         while seg < len(pts) - 1 and t < 120:
@@ -1705,8 +1830,14 @@ def simular(evs, g, v=150.0, semente=None):
                 pos, seg = [ax, ay], seg + 1
             else:
                 pos = [pos[0] + dx / dd * passo, pos[1] + dy / dd * passo]
-            ang = math.atan2(dy, dx) if dd > 1e-6 else ang
+            ang_passo = math.atan2(dy, dx) if dd > 1e-6 else ang_passo
+            ang = ang_passo + (math.radians(60.0) * math.sin(2 * math.pi * t / 4.0) if varre else 0.0)
             t += dt
+            for lab, s in st.items():
+                if s.get("girou") and not s.get("visto_depois"):
+                    e = [x for x in evs if x["label"] == lab][0]
+                    if olhando(dict(e, CosOlhar=0.8, bAparicao=False, bExigirLinhaVisao=False), pos, ang):
+                        s["visto_depois"] = round(t - s["girou"], 2)
             for e in evs:
                 s = st[e["label"]]
                 if s["feito"] or L not in e["Loops"]:
@@ -1725,6 +1856,9 @@ def simular(evs, g, v=150.0, semente=None):
                     out.append((e["label"], "MARCA", round(t, 2), ""))
                     s["feito"] = True
                     continue
+                # mesma ordem do TentarDisparar: visto -> dist -> PodeDisparar -> vista -> nao_visto -> costas
+                if e["bExigirVistoAntes"] and olhando(e, pos, ang):
+                    s["visto"] = True
                 d = math.hypot(pos[0] - e["som"].x, pos[1] - e["som"].y)
                 m = None
                 if e["DistMaxJogador"] > 0 and d > e["DistMaxJogador"]:
@@ -1737,10 +1871,16 @@ def simular(evs, g, v=150.0, semente=None):
                     m = "externo"
                 elif t < dist_ate:
                     m = "distorcao"
+                elif e["Categoria"] == 0 and t < reserva_ate:
+                    m = "reserva"
                 elif t - ultimo < hub_cfg["gap"]:
                     m = "gap"
                 elif cont[e["Categoria"]] >= (hub_cfg["maxb"] if e["Categoria"] == 0 else hub_cfg["maxs"]):
                     m = "cota"
+                elif e["bSoQuandoOlhando"] and not olhando(e, pos, ang):
+                    m = "vista"
+                elif e["bExigirVistoAntes"] and not s.get("visto"):
+                    m = "nao_visto"
                 elif e["bSoQuandoDeCostas"]:
                     fx, fy = math.cos(ang), math.sin(ang)
                     nx, ny = e["som"].x - pos[0], e["som"].y - pos[1]
@@ -1748,17 +1888,26 @@ def simular(evs, g, v=150.0, semente=None):
                     if (fx * nx + fy * ny) / nn > e["CosCostas"]:
                         m = "costas"
                 if m is None:
-                    out.append((e["label"], "FIRED", round(t, 2), ""))
+                    alvo = e["alvo_olhar"]
+                    out.append((e["label"], "FIRED", round(t, 2), "d=%.0f" % math.hypot(pos[0] - alvo.x, pos[1] - alvo.y)
+                                if e["Categoria"] == 1 else ""))
+                    if e["AlvoGirar"]:
+                        s["girou"] = t
                     ultimo = t
                     cont[e["Categoria"]] += 1
                     s["feito"] = True
                 else:
                     s["ultimo_m"] = m
+                    if e["Categoria"] == 1 and m in MOTIVOS_RESERVA:
+                        reserva_ate = t + 0.5
                     if m in ("troca", "pos_troca", "aguarda_marca", "externo", "distorcao", "reserva"):
                         s["tent"] = t
                     if t - s["tent"] > e["JanelaS"]:
                         out.append((e["label"], "SKIP", round(t, 2), m))
                         s["feito"] = True
+        for lab, s in st.items():
+            if s.get("girou"):
+                out.append((lab, "VISTO_DEPOIS" if s.get("visto_depois") else "NAO_VISTO_DEPOIS", s.get("visto_depois", 0), ""))
         for e in evs:
             s = st[e["label"]]
             if L in e["Loops"] and not s["feito"]:
@@ -1785,6 +1934,8 @@ def verificar():
     hubs = [a for a in atores() if a.get_class().get_name().startswith("BP_LuxEventHub")]
     if len(hubs) != 1:
         falhas.append("esperava 1 EVENTS_Hub (%d)" % len(hubs))
+    elif abs(hubs[0].get_editor_property("GapMinS") - GAP_MIN_S) > 1e-6:
+        falhas.append("EVENTS_Hub.GapMinS = %s (esperado %s)" % (hubs[0].get_editor_property("GapMinS"), GAP_MIN_S))
     evs = eventos_mapa()
     ids = [e["Id"] for e in evs]
     nums = [e["IdNum"] for e in evs]
@@ -1797,7 +1948,8 @@ def verificar():
         if e["Categoria"] == 2:
             continue
         if not s:
-            falhas.append("%s sem som" % e["label"])
+            if not e["bAparicao"]:
+                falhas.append("%s sem som" % e["label"])
             continue
         dur = s.get_editor_property("duration")
         loop_ = getattr(s, "looping", None)
@@ -1809,8 +1961,8 @@ def verificar():
         if e["DuracaoMaxS"] > 5.0:
             falhas.append("%s: Dur > 5 s" % e["label"])
         rel = e["RelCamada"] if e["SomCamada"] else 0.0
-        if e["Volume"] * (1 + rel) > 0.8 + 1e-6:
-            falhas.append("%s: volume %.2f > 0.8" % (e["label"], e["Volume"] * (1 + rel)))
+        if e["Volume"] * (1 + rel) > VOLUME_MAX + 1e-6:
+            falhas.append("%s: volume %.2f > %.1f" % (e["label"], e["Volume"] * (1 + rel), VOLUME_MAX))
         db = -24.0 * max(0.0, e["DistMaxJogador"] - 200.0) / 1800.0
         if db < -12.0 - 1e-6:
             falhas.append("%s: ganho em D=%.0f = %.1f dB (< -12)" % (e["label"], e["DistMaxJogador"], db))
@@ -1823,6 +1975,23 @@ def verificar():
             gap_x = max(gl.x - gx.x - (e["c"].x + e["x"].x), (e["c"].x - e["x"].x) - (gl.x + gx.x))
             if max(gap_x, gap_y) < 20.0:
                 falhas.append("%s a menos de 20 cm do GatilhoFechar" % e["label"])
+    for e in evs:
+        if e["Categoria"] == 1 and list(e["a"].get_editor_property("MotivosReserva")) != MOTIVOS_RESERVA:
+            falhas.append("%s: MotivosReserva desatualizado" % e["label"])
+        if e["TagLuzes"] and str(e["TagLuzes"]) != "None":
+            luzes = [a for a in atores() if str(e["TagLuzes"]) in [str(t) for t in a.tags]]
+            if not luzes:
+                falhas.append("%s: nenhuma luz com a tag %s" % (e["label"], e["TagLuzes"]))
+            for a in luzes:
+                c = a.get_components_by_class(unreal.LightComponent)[0]
+                cor = c.get_editor_property("light_color")
+                if "MOVABLE" not in str(c.get_editor_property("mobility")) or (cor.r > 1.3 * max(cor.g, cor.b, 1)):
+                    falhas.append("%s: luz %s nao Movable ou avermelhada" % (e["label"], a.get_actor_label()))
+        pp = list(e["PadraoPiscar"] or [])
+        if pp and (min(pp) < 0.25 or len(pp) > 8 or sum(pp) > 4.0):
+            falhas.append("%s: piscar fora da regra (passo>=0.25, <=8 passos, <=4 s)" % e["label"])
+        if e["AlvoGirar"] and "MOVABLE" not in str(e["AlvoGirar"].get_editor_property("root_component").get_editor_property("mobility")):
+            falhas.append("%s: %s nao e Movable" % (e["label"], e["AlvoGirar"].get_actor_label()))
     for L in range(1, 6):
         nb = len([e for e in evs if e["Categoria"] == 0 and L in e["Loops"]])
         ns = len([e for e in evs if e["Categoria"] == 1 and L in e["Loops"]])
@@ -1834,12 +2003,15 @@ def verificar():
             if set(a["Loops"]) & set(b_["Loops"]) and abs(a["c"].x - b_["c"].x) < a["x"].x + b_["x"].x and abs(a["c"].y - b_["c"].y) < a["x"].y + b_["x"].y:
                 falhas.append("caixas sobrepostas no mesmo loop: %s e %s" % (a["label"], b_["label"]))
     sim = {}
-    for v in (150.0,):
-        sim[v] = simular(evs, g, v)
-        for L, res in sim[v].items():
+    for nome, v, varre in PERFIS:
+        sim[nome] = simular(evs, g, v, varre)
+        for L, res in sim[nome].items():
+            dist_loop = any(e["label"] == "MARCA_Distorcao" and L in e["Loops"] for e in evs)
             for lab, acao, t, m in res:
-                if acao == "SKIP" and [e for e in evs if e["label"] == lab and e["Categoria"] == 1]:
-                    falhas.append("susto %s deu SKIP (%s) no loop %d a %.0f cm/s" % (lab, m, L, v))
+                if acao in ("SKIP", "PENDENTE_NA_PORTA", "NAO_ALCANCADO") and [e for e in evs if e["label"] == lab and e["Categoria"] == 1]:
+                    msg = "susto %s nao disparou (%s, %s) no loop %d, perfil %s" % (lab, acao, m, L, nome)
+                    # correndo, a porta chega antes de a distorcao (14.6 s) acabar: limite conhecido, vira aviso
+                    (avisos if (nome == "correndo" and dist_loop) else falhas).append(msg)
     if sujos():
         avisos.append("pacotes sujos: %s" % sujos())
     return falhas, avisos, sim
@@ -1878,7 +2050,7 @@ def instalar():
         raise Aborta("feche o PIE")
     if unreal.LevelSequenceEditorBlueprintLibrary.get_current_level_sequence():
         raise Aborta("feche o Sequencer")
-    proprios = {HUB, EVT, SA, CS, MI, SAVE, "/Game/Masion/Mapa_B"}
+    proprios = {HUB, EVT, SA, CS, MI, SAVE, VULTO_SM, VULTO_M, VULTO_MI, "/Game/Masion/Mapa_B"}
     if sujos() and not ("retomar" in sys.argv and set(sujos()) <= proprios):
         raise Aborta("ha pacotes nao salvos antes de comecar: %s" % sujos())
     if ESCRITORIO_NO_LUGAR_DA_COZINHA is None:
@@ -1890,15 +2062,16 @@ def instalar():
     mud = ensure_atores(hub, evt, g)
     w("atores novos:", mud or "nenhum")
     f, av, sim = verificar()
-    for L, res in sim.get(150.0, {}).items():
-        w("simulacao loop %d (150 cm/s): %s" % (L, res))
+    for nome, res_p in sim.items():
+        for L, res in res_p.items():
+            w("simulacao %s loop %d: %s" % (nome, L, res))
     if f:
         raise Aborta("verificar FAIL (nada salvo): %s" % f)
-    esperado = {HUB, EVT, SA, CS, MI, SAVE, "/Game/Masion/Mapa_B"}
+    esperado = {HUB, EVT, SA, CS, MI, SAVE, VULTO_SM, VULTO_M, VULTO_MI, "/Game/Masion/Mapa_B"}
     extra = set(sujos()) - esperado
     if extra:
         raise Aborta("pacotes sujos inesperados: %s" % sorted(extra))
-    for a in novos + [hub, evt] + [EAL.load_asset(p) for p in (SA, CS, MI, SAVE) if p in sujos()]:
+    for a in novos + [hub, evt] + [EAL.load_asset(p) for p in (SA, CS, MI, SAVE, VULTO_M, VULTO_MI, VULTO_SM) if p in sujos()]:
         if a.get_outermost().get_name() not in sujos():
             continue
         w("salvo", a.get_path_name(), EAL.save_loaded_asset(a, False))
@@ -1930,8 +2103,9 @@ def main():
     try:
         if modo == "verificar":
             f, av, sim = verificar()
-            for L, res in sim.get(150.0, {}).items():
-                w("simulacao loop %d: %s" % (L, res))
+            for nome, res_p in sim.items():
+                for L, res in res_p.items():
+                    w("simulacao %s loop %d: %s" % (nome, L, res))
             w("verificar:", ("FAIL %s" % f) if f else "PASS", "| avisos:", av or "nenhum")
         else:
             {"sondar": sondar, "instalar": instalar, "desfazer": desfazer}[modo]()

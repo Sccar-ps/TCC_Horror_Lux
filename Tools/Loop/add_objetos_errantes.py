@@ -208,6 +208,8 @@ def checa_slot(p, a, s, extras):
                                                   unreal.ObjectTypeQuery.OBJECT_TYPE_QUERY3, unreal.ObjectTypeQuery.OBJECT_TYPE_QUERY4],
                                                  None, [a] + [x for x in apoio if x])  # ignora SEMPRE o prop e o apoio
     ov = ov[1] if isinstance(ov, tuple) else ov
+    # 27/09: caixas-gatilho dos eventos (etapa 2/4) nao tem colisao fisica e o ErrDestinoSeguro (Visibility) nao as ve
+    ov = [x for x in (ov or []) if "LUX_LOOP_EVENTO" not in [str(t) for t in x.tags]]
     if ov:
         return False, "SOBREPOE %s" % ",".join(x.get_actor_label() for x in ov[:3])
     if any(m.startswith("L") for m in s["marcas"]):

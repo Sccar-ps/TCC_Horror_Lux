@@ -1,0 +1,140 @@
+{
+ "CDO_MotivosReserva": [
+  "gap",
+  "vista",
+  "costas",
+  "nao_visto",
+  "pos_troca",
+  "externo",
+  "distorcao",
+  "aguarda_marca"
+ ],
+ "EV_Susto_Vulto": {
+  "Loops": "[2]",
+  "Som": "None",
+  "Pitch": "1.0",
+  "Volume": "0.5",
+  "DuracaoMaxS": "4.0",
+  "GiroYaw": "0.0",
+  "TagLuzes": "None",
+  "PadraoPiscar": "[]",
+  "EscalaTremor": "0.0",
+  "AparicaoDistMin": "519.8",
+  "CosOlhar": "0.94",
+  "MotivosReserva": "[\"gap\", \"vista\", \"costas\", \"nao_visto\", \"pos_troca\", \"externo\", \"distorcao\", \"aguarda_marca\"]",
+  "JanelaS": "20.0",
+  "DistMaxJogador": "0.0",
+  "AlvoGirar": null,
+  "caixa": "<Struct 'Vector' (0x000002AE262F9820) {x: -3275.000000, y: 401.250000, z: 110.000000}> ext <Struct 'Vector' (0x000002AF4F963778) {x: 126.000000, y: 173.750000, z: 110.000000}>",
+  "aparicao": "<Struct 'Vector' (0x000002AE262F9820) {x: -3275.000000, y: -270.000000, z: 87.499994}> escala <Struct 'Vector' (0x000002AE262F9820) {x: 0.450000, y: 0.300000, z: 1.750000}>"
+ },
+ "EV_Susto_Arandelas": {
+  "Loops": "[3]",
+  "Som": "<Object '/Game/Backrooms_Ambience/Cues/8_FULL_Broken_Backrooms_Portal__by_juanjo_sound__Cue.8_FULL_Broken_Backrooms_Portal__by_juanjo_sound__Cue' (0x000002AF28565400) Class 'SoundCue'>",
+  "Pitch": "1.25",
+  "Volume": "0.45",
+  "DuracaoMaxS": "2.0",
+  "GiroYaw": "0.0",
+  "TagLuzes": "LUX_EV_Arandela",
+  "PadraoPiscar": "[0.300000, 0.450000, 0.250000, 0.600000, 0.350000, 0.400000]",
+  "EscalaTremor": "0.0",
+  "AparicaoDistMin": "500.0",
+  "CosOlhar": "0.8",
+  "MotivosReserva": "[\"gap\", \"vista\", \"costas\", \"nao_visto\", \"pos_troca\", \"externo\", \"distorcao\", \"aguarda_marca\"]",
+  "JanelaS": "30.0",
+  "DistMaxJogador": "1100.0",
+  "AlvoGirar": null,
+  "caixa": "<Struct 'Vector' (0x000002AE262F9820) {x: -2600.000000, y: -1130.000000, z: 110.000000}> ext <Struct 'Vector' (0x000002AF28564C78) {x: 150.000000, y: 150.000000, z: 110.000000}>",
+  "aparicao": "<Struct 'Vector' (0x000002AE262F9820) {x: -2600.000000, y: -1130.000000, z: 110.000000}> escala <Struct 'Vector' (0x000002AE262F9820) {x: 1.000000, y: 1.000000, z: 1.000000}>"
+ },
+ "EV_Susto_Cadeira": {
+  "Loops": "[4]",
+  "Som": "<Object '/Game/FPMovement/Assets/Audio/Abilitys/Door/SW_Close_Door.SW_Close_Door' (0x000002AF15A38200) Class 'SoundWave'>",
+  "Pitch": "0.45",
+  "Volume": "0.15",
+  "DuracaoMaxS": "1.956",
+  "GiroYaw": "166.5",
+  "TagLuzes": "None",
+  "PadraoPiscar": "[]",
+  "EscalaTremor": "0.0",
+  "AparicaoDistMin": "500.0",
+  "CosOlhar": "0.8",
+  "MotivosReserva": "[\"gap\", \"vista\", \"costas\", \"nao_visto\", \"pos_troca\", \"externo\", \"distorcao\", \"aguarda_marca\"]",
+  "JanelaS": "20.0",
+  "DistMaxJogador": "900.0",
+  "AlvoGirar": "LOOPC_L4_Cadeira",
+  "caixa": "<Struct 'Vector' (0x000002AE262F97D0) {x: -2465.000000, y: -1327.500000, z: 110.000000}> ext <Struct 'Vector' (0x000002AFB21E8478) {x: 235.000000, y: 422.500000, z: 110.000000}>",
+  "aparicao": "<Struct 'Vector' (0x000002AE262F97D0) {x: -2465.000000, y: -1327.500000, z: 110.000000}> escala <Struct 'Vector' (0x000002AE262F97D0) {x: 1.000000, y: 1.000000, z: 1.000000}>"
+ },
+ "EV_Susto_Estrondo": {
+  "Loops": "[5]",
+  "Som": "<Object '/Game/FPMovement/Assets/Audio/Abilitys/Door/SW_Close_Door.SW_Close_Door' (0x000002AF15A38200) Class 'SoundWave'>",
+  "Pitch": "0.55",
+  "Volume": "0.45",
+  "DuracaoMaxS": "1.601",
+  "GiroYaw": "0.0",
+  "TagLuzes": "None",
+  "PadraoPiscar": "[]",
+  "EscalaTremor": "0.5",
+  "AparicaoDistMin": "500.0",
+  "CosOlhar": "0.8",
+  "MotivosReserva": "[\"gap\", \"vista\", \"costas\", \"nao_visto\", \"pos_troca\", \"externo\", \"distorcao\", \"aguarda_marca\"]",
+  "JanelaS": "25.0",
+  "DistMaxJogador": "1100.0",
+  "AlvoGirar": null,
+  "caixa": "<Struct 'Vector' (0x000002AE262F97D0) {x: -2500.000000, y: -1300.000000, z: 110.000000}> ext <Struct 'Vector' (0x000002AFB21E6F78) {x: 150.000000, y: 150.000000, z: 110.000000}>",
+  "aparicao": "<Struct 'Vector' (0x000002AE262F97D0) {x: -2500.000000, y: -1300.000000, z: 110.000000}> escala <Struct 'Vector' (0x000002AE262F97D0) {x: 1.000000, y: 1.000000, z: 1.000000}>"
+ },
+ "EV_Sussurro_Corredor": {
+  "Loops": "[4]",
+  "Som": "<Object '/Game/Backrooms_Ambience/Cues/2_FULL_Backrooms_Portal__by_juanjo_sound__Cue.2_FULL_Backrooms_Portal__by_juanjo_sound__Cue' (0x000002AF15B9CB00) Class 'SoundCue'>",
+  "Pitch": "1.0",
+  "Volume": "0.3",
+  "DuracaoMaxS": "3.5",
+  "GiroYaw": "0.0",
+  "TagLuzes": "None",
+  "PadraoPiscar": "[]",
+  "EscalaTremor": "0.0",
+  "AparicaoDistMin": "500.0",
+  "CosOlhar": "0.8",
+  "MotivosReserva": "[\"gap\", \"vista\", \"costas\", \"nao_visto\", \"pos_troca\", \"externo\", \"distorcao\", \"aguarda_marca\"]",
+  "JanelaS": "20.0",
+  "DistMaxJogador": "1100.0",
+  "AlvoGirar": null,
+  "caixa": "<Struct 'Vector' (0x000002AE262F97D0) {x: -2800.000000, y: -820.000000, z: 110.000000}> ext <Struct 'Vector' (0x000002AFB21EC378) {x: 100.000000, y: 80.000000, z: 110.000000}>",
+  "aparicao": "<Struct 'Vector' (0x000002AE262F97D0) {x: -2800.000000, y: -820.000000, z: 110.000000}> escala <Struct 'Vector' (0x000002AE262F97D0) {x: 1.000000, y: 1.000000, z: 1.000000}>"
+ },
+ "LUX_Luz_Sala_Candelabro": {
+  "I": 0.05000000074505806,
+  "cor": "<Struct 'Color' (0x000002AF1BA44DB8) {b: 255, g: 255, r: 255, a: 255}>",
+  "mob": "<ComponentMobility.MOVABLE: 2>",
+  "tags": [
+   "LUX_FURNISH",
+   "LUX_EV_Arandela"
+  ]
+ },
+ "LUX_Luz_Sala_Candelabro2": {
+  "I": 0.05000000074505806,
+  "cor": "<Struct 'Color' (0x000002AF1BA4A7B8) {b: 255, g: 255, r: 255, a: 255}>",
+  "mob": "<ComponentMobility.MOVABLE: 2>",
+  "tags": [
+   "LUX_FURNISH",
+   "LUX_EV_Arandela"
+  ]
+ },
+ "LUX_Luz_Sala_Candelabro3": {
+  "I": 0.05000000074505806,
+  "cor": "<Struct 'Color' (0x000002AF1BA4B1B8) {b: 255, g: 255, r: 255, a: 255}>",
+  "mob": "<ComponentMobility.MOVABLE: 2>",
+  "tags": [
+   "LUX_FURNISH",
+   "LUX_EV_Arandela"
+  ]
+ },
+ "LOOPC_L4_Cadeira": {
+  "mob": "<ComponentMobility.MOVABLE: 2>",
+  "yaw": -52.29999923706055
+ },
+ "PortaSala.Manager": "LOOP_Manager",
+ "sujos": []
+}

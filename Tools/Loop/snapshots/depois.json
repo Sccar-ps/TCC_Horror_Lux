@@ -68,6 +68,52 @@
     "colisao": "BlockAllDynamic",
     "anexo": null
   },
+  "Sala_Prateleira_Pote": {
+    "path": "/Game/Masion/Mapa_B.Mapa_B:PersistentLevel.StaticMeshActor_4026",
+    "pacote": "/Game/Masion/Mapa_B",
+    "loc": [
+      -2062.84574508667,
+      -1504.0,
+      153.0
+    ],
+    "rot": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "mobilidade": "<ComponentMobility.MOVABLE: 2>",
+    "tags": [
+      "LUX_FURNISH",
+      "LUX_ERRANTE",
+      "ERR_POTE"
+    ],
+    "fisica": false,
+    "colisao": "BlockAllDynamic",
+    "anexo": null
+  },
+  "Sala_Piano_Banco": {
+    "path": "/Game/Masion/Mapa_B.Mapa_B:PersistentLevel.StaticMeshActor_3918",
+    "pacote": "/Game/Masion/Mapa_B",
+    "loc": [
+      -2896.0010557174683,
+      -1079.9976139068604,
+      -0.4216765761375427
+    ],
+    "rot": [
+      0.0,
+      0.0,
+      -90.0
+    ],
+    "mobilidade": "<ComponentMobility.MOVABLE: 2>",
+    "tags": [
+      "LUX_FURNISH",
+      "LUX_ERRANTE",
+      "ERR_BANCO"
+    ],
+    "fisica": false,
+    "colisao": "BlockAllDynamic",
+    "anexo": null
+  },
   "LOOP_Chegada": {
     "tags": [
       "LUX_LOOP",

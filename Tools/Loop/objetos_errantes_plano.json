@@ -159,7 +159,7 @@
           ],
           "loc": [
             -2112.0040053776247,
-            -350.48799467317434,
+            -355.78799467317435,
             161.19755913275992
           ],
           "rot": [
@@ -168,6 +168,63 @@
             4.7393957994334826e-23
           ],
           "tipo": "parede"
+        }
+      ],
+      "precisa_luz": false,
+      "obs": "27/09: marcador 5,3 cm afastado (menor valor que passa no ErrDestinoSeguro). A colisao simples da parede (CubeGridToolOutput_CutPart6) fica 3,27 cm na frente da parede visivel (y -353,27 vs -350); o quadro original ja entra 2,4 cm nela. Folga visivel ~2,9 cm."
+    },
+    {
+      "i": 6,
+      "id": "POTE",
+      "comodo": "Sala",
+      "modo": 0,
+      "ator": "Sala_Prateleira_Pote",
+      "obs": "27/09 complemento etapa 3: pote da prateleira aparece na mesa de jantar no inicio do loop 2 (troca oculta)",
+      "slots": [
+        {
+          "N": 1,
+          "marcas": [
+            "L2"
+          ],
+          "loc": [
+            -2420.0,
+            -1265.0,
+            75.5035400390625
+          ],
+          "rot": [
+            0.0,
+            0.0,
+            30.0
+          ],
+          "tipo": "superficie"
+        }
+      ],
+      "precisa_luz": false
+    },
+    {
+      "i": 7,
+      "id": "BANCO",
+      "comodo": "Sala",
+      "modo": 0,
+      "ator": "Sala_Piano_Banco",
+      "obs": "27/09 complemento etapa 3: banco do piano puxado 25 cm e torto 35 graus no inicio do loop 2 (troca oculta)",
+      "slots": [
+        {
+          "N": 1,
+          "marcas": [
+            "L2"
+          ],
+          "loc": [
+            -2875.0,
+            -1095.0,
+            -0.4216795563697815
+          ],
+          "rot": [
+            0.0,
+            0.0,
+            -55.0
+          ],
+          "tipo": "chao"
         }
       ],
       "precisa_luz": false
