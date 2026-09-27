@@ -8,6 +8,28 @@
 # Log: Saved/Loop/setup_log.txt. O mapa NAO e salvo (Ctrl+S); desfazer: Ctrl+Z ("LUX: loop").
 import gc, os, sys, traceback, unreal
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import add_door_slam as door_slam  # so define funcoes; o main dele so roda quando executado direto
+
+# LUX_DISTORCAO_HOOK: o gatilho tambem pede a distorcao temporal ao BP_LuxCeu (Tools/Sky/add_distorcao.py).
+# Ponha False para um rebuild nao gerar esse ramo.
+DISTORCAO_HOOK = True
+
+
+def inserir_ramo_distorcao(bp, ge, s_arm):
+    """Chamado pelo gerador depois do ramo da batida: 'bArmado = false' -> Sequence -> then_0 distorcao, then_1 batida."""
+    if not DISTORCAO_HOOK:
+        return None
+    if not EAL.does_asset_exist("/Game/Masion/LUX/Ceu/BP_LuxCeu"):
+        w("  AVISO: BP_LuxCeu nao existe; ramo da distorcao pulado")
+        return None
+    sky = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "Sky")
+    if sky not in sys.path:
+        sys.path.insert(0, sky)
+    import importlib, add_distorcao
+    importlib.reload(add_distorcao)
+    return add_distorcao.inserir_ramo(ge, s_arm)
+
 EAL = unreal.EditorAssetLibrary
 BEL = unreal.BlueprintEditorLibrary
 BGE = unreal.BlueprintGraphEditor
@@ -111,7 +133,8 @@ class G:
         for a, b in zip(steps, steps[1:]):
             an, ap = a if isinstance(a, tuple) else (a, "then")
             bn = b[0] if isinstance(b, tuple) else b
-            bp = next(str(p.get_pin_name()) for p in bn.list_input_pins() if str(p.get_pin_type_display_string()) == "Exec")
+            # o nome exibido do tipo e traduzido ("Exec"/"Execucao") conforme o idioma do editor; o schema JSON nao
+            bp = next(str(p.get_pin_name()) for p in bn.list_input_pins() if '"exec"' in str(p.get_pin_type_as_json_schema()))
             self.link(an, ap, bn, bp)
 
     def note(self, text, x, y, wd, ht):
@@ -192,6 +215,13 @@ def build_manager():
     BEL.compile_blueprint(bp)  # variaveis novas precisam existir na classe antes de criar os nos get/set
     if "AplicarTag" not in [str(x) for x in BEL.list_graph_names(bp)]:
         build_aplicar_tag(bp)
+    # porta que bate (add_door_slam.py): variaveis e funcoes BaterPorta*, so se faltarem (funcoes nunca sao recriadas)
+    att, cue = door_slam.ensure_audio()
+    door_slam.ensure_vars(bp, cue)
+    door_slam.build_bater_porta(bp)
+    door_slam.build_impacto(bp, att)
+    door_slam.build_restaurar(bp)
+    BEL.compile_blueprint(bp)
     w("  refazendo o EventGraph do manager")
     build_manager_graph(bp)
     cdo = unreal.get_default_object(bp.generated_class())
@@ -415,7 +445,9 @@ def build_manager_graph(bp):
     shut = g.call(DOOR_C + ":Interact", 1460, Y)
     g.link(q2, "PortaQuarto", shut, "self")
     g.chain(ov, b1)
-    g.chain((b1, "then"), s_arm, b2)
+    g.chain((b1, "then"), s_arm)
+    door_slam.inserir_no_gatilho(g.ge, s_arm, b2, 950, Y + 600)  # s_arm -> [bate a porta?] -> senao b2 (de sempre)
+    inserir_ramo_distorcao(bp, g.ge, s_arm)  # LUX_DISTORCAO_HOOK: s_arm -> Sequence(then_0 distorcao, then_1 batida)
     g.chain((b2, "else"), shut)
     g.note("Gatilho no corredor (caixa GatilhoFechar): depois de cada troca, fecha a porta do quarto atras do jogador",
            -40, Y - 120, 1800, 480)
@@ -428,11 +460,23 @@ def build_loop_door(mgr_bp):
     ensure_var(bp, "Manager", BEL.get_object_reference_type(mgr_bp.generated_class()))
     g = clear_event_graph(bp)
     ev = g.pos(BEL.add_event_override(bp, "Interact", unreal.IntPoint(0, 0)), 0, 0)
-    call = g.call(MGR_C + ":PedirTroca", 320, 0)
-    g.link(g.get("Manager", 100, 160), "Manager", call, "self")
-    g.chain(ev, call)
-    g.note("Porta da sala durante o loop: nunca abre; pede a troca ao BP_LuxLoopManager. "
-           "No ultimo loop o manager esconde esta porta e revela a porta real que fica embaixo dela", -40, -120, 900, 380)
+    # rede de seguranca: se a referencia do mapa se perder (26/09: reload do manager deixou Manager = None e o mapa
+    # foi salvo assim), acha o manager do nivel antes de pedir a troca
+    ok = g.call(KSL + "IsValid", 200, 200)
+    g.link(g.get("Manager", 40, 220), "Manager", ok, "Object")
+    br = g.branch(320, 0)
+    g.link(ok, "ReturnValue", br, "Condition")
+    find = g.call(GS + "GetActorOfClass", 520, 240, ActorClass="/Script/Engine.BlueprintGeneratedClass'%s'" % MGR_C)
+    s_mgr = g.set("Manager", 600, 120)
+    g.link(find, "ReturnValue", s_mgr, "Manager")
+    call = g.call(MGR_C + ":PedirTroca", 900, 0)
+    g.link(g.get("Manager", 700, 200), "Manager", call, "self")
+    g.chain(ev, br)
+    g.chain((br, "then"), call)
+    g.chain((br, "else"), find, s_mgr, call)  # GetActorOfClass tem pino de execucao no 5.8
+    g.note("Porta da sala durante o loop: nunca abre; pede a troca ao BP_LuxLoopManager (se Manager estiver vazio, "
+           "busca o do nivel com GetActorOfClass). No ultimo loop o manager esconde esta porta e revela a porta real "
+           "que fica embaixo dela", -40, -120, 1200, 480)
     BEL.compile_blueprint(bp)
     EAL.save_loaded_asset(bp, False)
     w("BP_LuxLoopDoor:", errors(bp, ("EventGraph",)) or "compilou sem erros/avisos")
@@ -555,4 +599,5 @@ def main():
         w("ERRO " + traceback.format_exc())
 
 
-main()
+if __name__ == "__main__":  # importavel (ex.: fix_loop_door.py refaz so a BP_LuxLoopDoor) sem rodar tudo
+    main()

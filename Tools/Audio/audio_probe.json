@@ -1,0 +1,55 @@
+{
+  "coracao": {
+    "entradas": [
+      {
+        "nome": "UE.Source.OnPlay",
+        "tipo": "Trigger",
+        "constructor": [
+          false
+        ],
+        "default": "(Type=Boolean,AsNumDefault=0,AsBoolean=(False),AsInteger=,AsFloat=,AsString=,AsUObject=)"
+      },
+      {
+        "nome": "Pulse",
+        "tipo": "Float",
+        "constructor": [
+          false
+        ],
+        "default": "(Type=Float,AsNumDefault=0,AsBoolean=,AsInteger=,AsFloat=(169.119965),AsString=,AsUObject=)"
+      }
+    ],
+    "oneshot": false,
+    "duration": 10000.0
+  },
+  "vento": {
+    "looping": true,
+    "duration": 29.852083206176758
+  },
+  "backrooms": {
+    "2": {
+      "asset": "/Game/Backrooms_Ambience/WAVs/5_LOOP_Backrooms_Memories__by_juanjo_sound__wav.5_LOOP_Backrooms_Memories__by_juanjo_sound__wav",
+      "como": "WAV com Looping (a cue nao tem WavePlayer em loop)",
+      "duration": 102.1
+    },
+    "3": {
+      "asset": "/Game/Backrooms_Ambience/WAVs/7_LOOP_Backrooms_Mirage__by_juanjo_sound__wav.7_LOOP_Backrooms_Mirage__by_juanjo_sound__wav",
+      "como": "WAV com Looping (a cue nao tem WavePlayer em loop)",
+      "duration": 73.4
+    },
+    "4": {
+      "asset": "/Game/Backrooms_Ambience/WAVs/4_LOOP_Backrooms_Stalker__by_juanjo_sound__wav.4_LOOP_Backrooms_Stalker__by_juanjo_sound__wav",
+      "como": "WAV com Looping (a cue nao tem WavePlayer em loop)",
+      "duration": 89.2
+    },
+    "5": {
+      "asset": "/Game/Backrooms_Ambience/WAVs/8_LOOP_Broken_Backrooms_Portal__by_juanjo_sound__wav.8_LOOP_Broken_Backrooms_Portal__by_juanjo_sound__wav",
+      "como": "WAV com Looping (a cue nao tem WavePlayer em loop)",
+      "duration": 85.7
+    }
+  },
+  "manager": {
+    "instancias": 1,
+    "LoopFinal": 5
+  },
+  "sujos": []
+}

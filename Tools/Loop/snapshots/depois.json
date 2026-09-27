@@ -1,0 +1,77 @@
+{
+  "Escritorio_Livro1": {
+    "path": "/Game/Masion/Mapa_B.Mapa_B:PersistentLevel.StaticMeshActor_4225",
+    "pacote": "/Game/Masion/Mapa_B",
+    "loc": [
+      -3833.024093518682,
+      -1065.9708637090494,
+      77.0841542816162
+    ],
+    "rot": [
+      0.0,
+      90.0,
+      5.0
+    ],
+    "mobilidade": "<ComponentMobility.MOVABLE: 2>",
+    "tags": [
+      "LUX_FURNISH",
+      "LUX_ERRANTE",
+      "ERR_CANECA"
+    ],
+    "fisica": false,
+    "colisao": "BlockAllDynamic",
+    "anexo": null
+  },
+  "Sala_Prateleira_Livro1": {
+    "path": "/Game/Masion/Mapa_B.Mapa_B:PersistentLevel.StaticMeshActor_4023",
+    "pacote": "/Game/Masion/Mapa_B",
+    "loc": [
+      -2061.968875,
+      -1527.0,
+      153.0
+    ],
+    "rot": [
+      -0.0,
+      47.0,
+      -90.0
+    ],
+    "mobilidade": "<ComponentMobility.MOVABLE: 2>",
+    "tags": [
+      "LUX_FURNISH",
+      "LUX_ERRANTE",
+      "ERR_LIVRO"
+    ],
+    "fisica": false,
+    "colisao": "BlockAllDynamic",
+    "anexo": null
+  },
+  "Sala_Quadro_N2": {
+    "path": "/Game/Masion/Mapa_B.Mapa_B:PersistentLevel.StaticMeshActor_3916",
+    "pacote": "/Game/Masion/Mapa_B",
+    "loc": [
+      -2111.995994567871,
+      -350.4879946708679,
+      160.99999809265137
+    ],
+    "rot": [
+      -3.0,
+      0.0,
+      180.0
+    ],
+    "mobilidade": "<ComponentMobility.MOVABLE: 2>",
+    "tags": [
+      "LUX_FURNISH",
+      "LUX_ERRANTE",
+      "ERR_QUADRO"
+    ],
+    "fisica": false,
+    "colisao": "BlockAllDynamic",
+    "anexo": null
+  },
+  "LOOP_Chegada": {
+    "tags": [
+      "LUX_LOOP",
+      "LUX_CHEGADA"
+    ]
+  }
+}

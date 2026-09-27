@@ -1,0 +1,176 @@
+{
+  "versao": 1,
+  "janela_preto_s": 0.0,
+  "pedir_troca": {
+    "cadeia": [
+      "SetViewTargetWithBlend(CamSala, TempoAproximar)",
+      "Delay(TempoAproximar)",
+      "StartCameraFade 0->1 (0.08 s, hold)",
+      "Delay(0.12)",
+      "K2_TeleportTo(Chegada)",
+      "SetControlRotation",
+      "SetViewTargetWithBlend(CamQuarto, 0)",
+      "SetGameCameraCutThisFrame",
+      "SET LoopAtual = LoopAtual+1",
+      "AplicarTag _ON/_OFF",
+      "bArmado = true",
+      "StartCameraFade 1->0 (0.20 s, sem Delay)",
+      "..."
+    ],
+    "preto_restante_s": 0.0,
+    "janela_preto_s": 0.0
+  },
+  "porta_chegada_cm": 3092,
+  "gatilho_dono": "BP_LuxLoopManager_C (bArmado)",
+  "portas": [
+    "BP_BaseDoor5",
+    "BP_BaseDoor7",
+    "LOOP_PortaSala"
+  ],
+  "lanterna": [
+    {
+      "componente": "SM_Flashlight_GEN_VARIABLE",
+      "classe": "StaticMeshComponent",
+      "colisao": "NoCollision",
+      "visibility": "<CollisionResponseType.ECR_IGNORE: 0>"
+    },
+    {
+      "componente": "Flashlight_Light_GEN_VARIABLE",
+      "classe": "SpotLightComponent"
+    },
+    {
+      "componente": "Flashlight_Light_GEN_VARIABLE",
+      "classe": "SpotLightComponent"
+    },
+    {
+      "componente": "SM_Flashlight_GEN_VARIABLE",
+      "classe": "StaticMeshComponent",
+      "colisao": "NoCollision",
+      "visibility": "<CollisionResponseType.ECR_IGNORE: 0>"
+    }
+  ],
+  "ofpa": false,
+  "altura_olho_cm": 166.0,
+  "raio_capsula_cm": 40.0,
+  "papeis": [
+    {
+      "i": 0,
+      "id": "ABAJUR",
+      "comodo": "Quarto",
+      "modo": 0,
+      "ator": null,
+      "vazio": "os abajures sao 3 pecas (base, cupula e luz propria LUX_Luz_*_Abajur): falha no §3 (luz anexada/multi-peca)",
+      "slots": []
+    },
+    {
+      "i": 1,
+      "id": "CANECA",
+      "comodo": "Escritorio",
+      "modo": 0,
+      "ator": "Escritorio_Livro1",
+      "obs": "nao ha caneca no Mapa_B; o objeto pequeno da mesa do escritorio que passa no §3 e o Escritorio_Livro1",
+      "slots": [
+        {
+          "N": 2,
+          "marcas": [
+            "L4"
+          ],
+          "loc": [
+            -3748.614414215088,
+            -1065.9708637090494,
+            1.086294412612915
+          ],
+          "rot": [
+            0.0,
+            90.0,
+            40.0
+          ],
+          "tipo": "chao"
+        }
+      ],
+      "precisa_luz": false,
+      "slots_vazios": [
+        {
+          "N": 1,
+          "motivos": [
+            "SOBREPOE COL_Escritorio_Mesa,Escritorio_Vela",
+            "SOBREPOE COL_Escritorio_Mesa",
+            "SEM_APOIO"
+          ]
+        }
+      ]
+    },
+    {
+      "i": 2,
+      "id": "CADEIRA",
+      "comodo": "Escritorio",
+      "modo": 0,
+      "ator": null,
+      "vazio": "Escritorio_Cadeira tem a colisao num ator separado (COL_Escritorio_Cadeira): mover so a malha deixaria uma parede invisivel; falha no §3 (par/anexo)",
+      "slots": []
+    },
+    {
+      "i": 3,
+      "id": "LIVRO",
+      "comodo": "Sala",
+      "modo": 1,
+      "ator": "Sala_Prateleira_Livro1",
+      "slots": [
+        {
+          "N": 1,
+          "marcas": [
+            "V3"
+          ],
+          "loc": [
+            -2779.9759024209325,
+            -1649.9556888165619,
+            0.8279885791649804
+          ],
+          "rot": [
+            0.0,
+            47.0,
+            -40.0
+          ],
+          "tipo": "chao"
+        }
+      ],
+      "precisa_luz": true
+    },
+    {
+      "i": 4,
+      "id": "BRINQUEDO",
+      "comodo": "Quarto",
+      "modo": 2,
+      "ator": null,
+      "vazio": "nao existe brinquedo no Mapa_B",
+      "slots": []
+    },
+    {
+      "i": 5,
+      "id": "QUADRO",
+      "comodo": "Sala",
+      "modo": 0,
+      "ator": "Sala_Quadro_N2",
+      "slots": [
+        {
+          "N": 1,
+          "marcas": [
+            "L5"
+          ],
+          "loc": [
+            -2112.0040053776247,
+            -350.48799467317434,
+            161.19755913275992
+          ],
+          "rot": [
+            177.0,
+            -5.008956327514119e-06,
+            4.7393957994334826e-23
+          ],
+          "tipo": "parede"
+        }
+      ],
+      "precisa_luz": false
+    }
+  ]
+}

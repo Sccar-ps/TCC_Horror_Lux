@@ -1,0 +1,32 @@
+{
+  "lua": {
+    "pitch": -25.0,
+    "yaw": -22.9,
+    "roll": -0.0,
+    "loc": [
+      -3250.0,
+      1030.0,
+      500.0
+    ],
+    "intensity": 0.05999999865889549,
+    "color": [
+      170,
+      195,
+      255,
+      255
+    ],
+    "use_temperature": false,
+    "temperature": 6500.0,
+    "mobility": "<ComponentMobility.MOVABLE: 2>",
+    "sun_light": true,
+    "cast_shadows": true
+  },
+  "ceu": {
+    "sky_luminance_factor": [
+      0.10000000149011612,
+      0.10000000149011612,
+      0.10000000149011612,
+      1.0
+    ]
+  }
+}
