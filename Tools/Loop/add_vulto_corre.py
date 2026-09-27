@@ -30,8 +30,20 @@ EVENTO = "EV_Susto_Vulto"
 # da silhueta (-3250, -560); da esquerda para a direita de quem vem pelo corredor (olhando para -Y, a direita e +X)
 PONTO_A = (-3490.0, -560.0, 0.0)
 PONTO_B = (-2950.0, -560.0, 0.0)
-DURACAO = 0.8           # ~6,75 m/s
-TAXA_ANIM = 1.8          # jog acelerado para parecer corrida
+DURACAO = 0.6           # ~9 m/s (27/09 21:49: 1.0 -> 0.6, "passa rapido")
+TAXA_ANIM = 4.0          # jog acelerado na mesma proporcao (2.4 * 1.0/0.6)
+# 27/09 18:22 (teste do Gabriel: "trava no fim e meio que respawna, como se tivessem dois"): o anim_Jog_Loop_Fwd anda
+# 3,77 m por ciclo na propria raiz (root motion desligado, raiz livre) e volta ao inicio a cada ciclo. Copia no nosso
+# diretorio com ForceRootLock (o asset do pack nao e alterado); quem move a figura e so o ator.
+ANIM_LUX = DIR + "/A_LuxVultoJog"
+# corpo menos opaco (pedido do Gabriel): unlit, translucido, preto
+M_CORPO = DIR + "/M_LuxVultoCorpo"
+OPACIDADE_CORPO = 0.35  # 27/09 21:49: 0.6 -> 0.35 (mais sutil, sem sumir)
+OPACIDADE_AURA = 0.3    # 0.45 -> 0.3
+# luz bem fraca no fundo do caminho, so no loop 2 (tags LOOP2_ON + LOOP3_OFF do LOOP_Manager): com a vela o fundo do
+# corredor e preto e o vulto sumiria de vez
+LUZ_FUNDO = "LUX_Vulto_LuzFundo"
+LUZ_FUNDO_CFG = {"pos": (-3250.0, -1080.0, 110.0), "cd": 0.25, "raio": 450.0, "temperatura": 3500.0}
 AURA_CM = 5.0
 # passos do vulto (27/09 17:33: "altos e pesados"): SC_LuxVultoPasso = Mixer[ Modulator(pitch 0.72..0.80) <- Random(4 passos
 # de madeira mais graves do pack, medidos pela energia abaixo de ~200 Hz), Modulator(pitch 0.5) <- Flashlight_Hit ] com o
@@ -98,6 +110,94 @@ def ensure_materiais():
         MEL.recompile_material(m)
         novos.append(m)
     return novos
+
+
+def ensure_v2():
+    """Animacao com raiz travada + material translucido do corpo + aura menos opaca."""
+    MEL = unreal.MaterialEditingLibrary
+    novos = []
+    if not EAL.does_asset_exist(ANIM_LUX):
+        w("duplicando anim -> A_LuxVultoJog (ForceRootLock)")
+        a = EAL.duplicate_asset(ANIM, ANIM_LUX)
+        a.set_editor_property("force_root_lock", True)
+        novos.append(a)
+    a = EAL.load_asset(ANIM_LUX)
+    if not a.get_editor_property("force_root_lock"):
+        a.set_editor_property("force_root_lock", True)
+        novos.append(a)
+    if not EAL.does_asset_exist(M_CORPO):
+        w("criando M_LuxVultoCorpo")
+        m = unreal.AssetToolsHelpers.get_asset_tools().create_asset("M_LuxVultoCorpo", DIR, unreal.Material, unreal.MaterialFactoryNew())
+        m.set_editor_property("blend_mode", unreal.BlendMode.BLEND_TRANSLUCENT)
+        m.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_UNLIT)
+        preto = MEL.create_material_expression(m, unreal.MaterialExpressionConstant3Vector, -400, -100)
+        preto.set_editor_property("constant", unreal.LinearColor(0, 0, 0, 1))
+        MEL.connect_material_property(preto, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+        op = MEL.create_material_expression(m, unreal.MaterialExpressionScalarParameter, -400, 100)
+        op.set_editor_property("parameter_name", "Opacidade")
+        op.set_editor_property("default_value", OPACIDADE_CORPO)
+        MEL.connect_material_property(op, "", unreal.MaterialProperty.MP_OPACITY)
+        MEL.recompile_material(m)
+        novos.append(m)
+    corpo = EAL.load_asset(M_CORPO)
+    op = MEL.get_material_property_input_node(corpo, unreal.MaterialProperty.MP_OPACITY)
+    if op and abs(op.get_editor_property("default_value") - OPACIDADE_CORPO) > 1e-6:
+        op.set_editor_property("default_value", OPACIDADE_CORPO)
+        MEL.recompile_material(corpo)
+        novos.append(corpo)
+    aura = EAL.load_asset(M_AURA)
+    for e in MEL.get_material_property_input_node(aura, unreal.MaterialProperty.MP_OPACITY) and [MEL.get_material_property_input_node(aura, unreal.MaterialProperty.MP_OPACITY)] or []:
+        if isinstance(e, unreal.MaterialExpressionMultiply) and abs(e.get_editor_property("const_b") - OPACIDADE_AURA) > 1e-6:
+            e.set_editor_property("const_b", OPACIDADE_AURA)
+            MEL.recompile_material(aura)
+            novos.append(aura)
+    return novos
+
+
+def ensure_luz_fundo():
+    eas = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+    lst = [a for a in ale.atores() if a.get_actor_label() == LUZ_FUNDO]
+    mud = []
+    a = lst[0] if lst else None
+    if not a:
+        a = eas.spawn_actor_from_class(unreal.PointLight, unreal.Vector(*LUZ_FUNDO_CFG["pos"]), unreal.Rotator())
+        a.set_actor_label(LUZ_FUNDO)
+        a.set_folder_path(ale.FOLDER)
+        mud.append(LUZ_FUNDO)
+    c = a.point_light_component
+    for k, v in (("mobility", unreal.ComponentMobility.MOVABLE), ("intensity_units", unreal.LightUnits.CANDELAS), ("intensity", LUZ_FUNDO_CFG["cd"]),
+                 ("attenuation_radius", LUZ_FUNDO_CFG["raio"]), ("use_temperature", True), ("temperature", LUZ_FUNDO_CFG["temperatura"]),
+                 ("cast_shadows", False)):
+        if c.get_editor_property(k) != v:
+            c.set_editor_property(k, v)
+            mud.append("%s.%s" % (LUZ_FUNDO, k))
+    tags = [str(t) for t in a.tags]
+    quer = [ale.TAG, "LOOP2_ON", "LOOP3_OFF"]
+    if sorted(tags) != sorted(quer):
+        a.set_editor_property("tags", [unreal.Name(x) for x in quer])
+        mud.append("%s tags" % LUZ_FUNDO)
+    return mud
+
+
+def aplica_figura(bp):
+    """Template da Figura: animacao com raiz travada, taxa e material translucido (propriedades, sem grafo)."""
+    fig = ale.comp_template(bp, "Figura")
+    mud = False
+    dados = fig.get_editor_property("animation_data")
+    if dados.get_editor_property("anim_to_play") != EAL.load_asset(ANIM_LUX) or abs(dados.get_editor_property("saved_play_rate") - TAXA_ANIM) > 1e-6:
+        fig.set_editor_property("animation_data", unreal.SingleAnimationPlayData(anim_to_play=EAL.load_asset(ANIM_LUX), saved_looping=True,
+                                                                                   saved_playing=True, saved_position=0.0,
+                                                                                   saved_play_rate=TAXA_ANIM))
+        mud = True
+    corpo = EAL.load_asset(M_CORPO)
+    mats = list(fig.get_editor_property("override_materials"))
+    if any(m_ != corpo for m_ in mats):
+        fig.set_editor_property("override_materials", [corpo] * len(mats))
+        mud = True
+    if mud:
+        w("template Figura atualizado (anim %s, taxa %.1f, corpo translucido %.2f)" % (ANIM_LUX, TAXA_ANIM, OPACIDADE_CORPO))
+        BEL.compile_blueprint(bp)
+    return mud
 
 
 def ensure_cue():
@@ -307,6 +407,14 @@ def verificar():
         falhas.append("Figura com colisao ou sombra")
     if not fig.get_editor_property("overlay_material"):
         falhas.append("Figura sem aura (OverlayMaterial)")
+    anim = fig.get_editor_property("animation_data").get_editor_property("anim_to_play")
+    if not anim or not anim.get_editor_property("force_root_lock"):
+        falhas.append("animacao da Figura sem raiz travada (a figura 'respawna' a cada ciclo)")
+    if abs(a.get_editor_property("Duracao") - DURACAO) > 1e-6:
+        falhas.append("Duracao da corrida != %.1f" % DURACAO)
+    lf = [x for x in ale.atores() if x.get_actor_label() == LUZ_FUNDO]
+    if len(lf) != 1 or sorted(str(t) for t in lf[0].tags) != sorted([ale.TAG, "LOOP2_ON", "LOOP3_OFF"]):
+        falhas.append("%s ausente ou sem as tags de loop (so no loop 2)" % LUZ_FUNDO)
     ev = a.get_editor_property("Evento")
     if not ev or ev.get_actor_label() != EVENTO:
         falhas.append("Evento nao aponta para %s" % EVENTO)
@@ -321,10 +429,13 @@ def verificar():
 def instalar():
     if unreal.get_editor_subsystem(unreal.LevelEditorSubsystem).is_in_play_in_editor():
         raise Aborta("feche o PIE")
-    novos = ensure_materiais() + ensure_cue()
+    novos = ensure_materiais() + ensure_cue() + ensure_v2()
     bp, criou = ensure_bp()
+    if aplica_figura(bp):
+        criou = True
     a, mud = ensure_ator(bp)
     mud += ensure_som_evento()
+    mud += ensure_luz_fundo()
     w("mudou:", mud or "nada")
     f = verificar()
     if f:
@@ -339,7 +450,7 @@ def instalar():
 
 def desfazer():
     eas = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
-    for a in [a for a in ale.atores() if a.get_actor_label() == LABEL]:
+    for a in [a for a in ale.atores() if a.get_actor_label() in (LABEL, LUZ_FUNDO)]:
         eas.destroy_actor(a)
     U = unreal.EditorLoadingAndSavingUtils
     U.save_packages([p for p in U.get_dirty_map_packages() if p.get_name() == "/Game/Masion/Mapa_B"], True)

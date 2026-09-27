@@ -275,6 +275,15 @@ def ensure_assets():
     if not EAL.does_directory_exist(DIR):
         EAL.make_directory(DIR)
     criados = []
+    if not EAL.does_asset_exist(SA_SUSTO):
+        a = at.create_asset("SA_LuxSusto", DIR, unreal.SoundAttenuation, unreal.SoundAttenuationFactory())
+        s = a.get_editor_property("attenuation")
+        for k, v in (("attenuate", True), ("spatialize", True), ("attenuation_shape", unreal.AttenuationShape.SPHERE),
+                     ("attenuation_shape_extents", unreal.Vector(ATT_SUSTO["inner"], 0, 0)), ("falloff_distance", ATT_SUSTO["falloff"]),
+                     ("distance_algorithm", unreal.AttenuationDistanceModel.NATURAL_SOUND), ("d_b_attenuation_at_max", ATT_SUSTO["db_max"])):
+            s.set_editor_property(k, v)
+        a.set_editor_property("attenuation", s)
+        criados.append(a)
     if not EAL.does_asset_exist(SA):
         a = at.create_asset("SA_LuxEvento", DIR, unreal.SoundAttenuation, unreal.SoundAttenuationFactory())
         s = a.get_editor_property("attenuation")
@@ -397,11 +406,48 @@ def vars_evento():
 # no mesmo instante e o susto perde a janela na caminhada direta)
 MOTIVOS_RESERVA = ["gap", "vista", "costas", "nao_visto", "pos_troca", "externo", "distorcao", "aguarda_marca"]
 TAG_LUZES = "LUX_EV_Arandela"
+# 27/09 21:14 (gatilhos por rota, aprovado): faixas de parede a parede nas passagens obrigatorias (grade de capsula +
+# BFS: sem elas a porta fica inalcancavel) e uma caixa dentro do escritorio (beco sem saida, rota opcional).
+# (centro x, centro y), (meia x, meia y); z sempre 0..250
+Z_FAIXA = (125.0, 125.0)
+FAIXAS = {
+    "S1": ((-3000.0, -550.0), (60.0, 210.0)),        # entrada da sala (x -3060..-2940, y -760..-340)
+    "S2O": ((-2705.0, -1275.0), (305.0, 75.0)),      # meio da sala, lado oeste + meio (x -3010..-2400, y -1350..-1200)
+    "S2L": ((-2228.0, -1125.0), (172.0, 225.0)),     # lado leste (x -2400..-2056, y -1350..-900): comeca antes para ver a cadeira
+    "SP": ((-2528.0, -1690.0), (472.0, 70.0)),       # antes da porta (y -1760..-1620), parede a parede: Portal_Sala
+    "S3": ((-2528.0, -1840.0), (472.0, 60.0)),       # frente da porta (y -1900..-1780), parede a parede: sustos reserva
+    "ESC": ((-3500.0, -1130.0), (350.0, 370.0)),     # dentro do escritorio (x -3850..-3150, y -1500..-760)
+}
+# luzes por tag de piscar (cada rota pisca as luzes do seu lado)
+TAG_LESTE = "LUX_EV_PiscarLeste"
+TAG_ESC = "LUX_EV_PiscarEsc"
+LUZES_POR_TAG = {TAG_LUZES: ["LUX_Luz_Sala_Candelabro", "LUX_Luz_Sala_Candelabro2", "LUX_Luz_Sala_Candelabro3", "LUX_Luz_Sala_Abajur"],
+                 TAG_LESTE: ["LUX_Luz_Sala_Abajur", "LUX_Luz_Sala_VelaJantar"],
+                 TAG_ESC: ["LUX_Luz_Escritorio_Vela"]}
+CADEIRA_JANTAR = "Sala_Jantar_Cabeceira2"   # sem luz baked no Mapa_B (sem BuiltData, todas as luzes Movable): vira Movable direto
+CADEIRA_JANTAR_ALVO = (-2250.0, -1750.0)    # gira para ficar de frente para quem vai para a porta pelo lado leste
+# rotas andaveis (grade 25 cm + capsula r30), Chegada -> porta do loop
+ROTAS = {
+    "meio": [(-3275, 955), (-3275, -500), (-2750, -800), (-2600, -1350), (-2450, -1500), (-2294, -1827)],
+    "oeste": [(-3275, 955), (-3275, -500), (-2850, -560), (-2820, -1350), (-2700, -1800), (-2294, -1850)],
+    "leste": [(-3275, 955), (-3275, -500), (-2900, -480), (-2200, -480), (-2150, -1600), (-2294, -1827)],
+    "escritorio": [(-3275, 955), (-3275, -500), (-3250, -700), (-3500, -1100), (-3250, -700), (-3275, -500), (-2750, -800),
+                   (-2600, -1350), (-2450, -1500), (-2294, -1827)]}
 LUZES_SUSTO = ["LUX_Luz_Sala_Candelabro", "LUX_Luz_Sala_Candelabro2", "LUX_Luz_Sala_Candelabro3",
-               "LUX_Luz_Sala_Abajur"]  # 27/09: abajur (0.63) junto, os candelabros (0.05) sozinhos passavam despercebidos
+               "LUX_Luz_Sala_Abajur"]  # historico; as tags agora vem de LUZES_POR_TAG  # 27/09: abajur (0.63) junto, os candelabros (0.05) sozinhos passavam despercebidos
 GAP_MIN_S = 3.0  # 27/09: gap do EVENTS_Hub (instancia) 10 -> 5 -> 3 s (teste do Gabriel: sustos e barulhos precisam caber)
-VOLUME_MAX = 2.1  # 27/09 17:33: 1.5 -> 2.1 (sustos x1.4 de novo, pedido do Gabriel). 27/09: VolumeMax do EVENTS_Hub (instancia) 0.8 -> 1.5; sustos com som x1.8 (pedido do Gabriel: mais altos)
-TREMOR_MAX = 1.5  # 27/09: EscalaTremorMax do EVENTS_Hub (instancia); o estrondo a 0.5 passava despercebido
+VOLUME_MAX = 2.4  # 27/09 18:22: 2.1 -> 2.4 (sustos ate pico -0.5 dBFS no pior caso; o resto vem da SA_LuxSusto)
+# 27/09 18:22: atenuacao so dos sustos (raio interno 450 em vez de 200): o jogador ouve os sustos em volume cheio na
+# distancia real em que eles disparam (piscar ~7,6 m, estrondo ~3,9 m, cadeira ~1,9 m)
+SA_SUSTO = DIR + "/SA_LuxSusto"
+ATT_SUSTO = {"inner": 450.0, "falloff": 1800.0, "db_max": -24.0}
+# historico: 27/09: VolumeMax do EVENTS_Hub (instancia) 0.8 -> 1.5; sustos com som x1.8 (pedido do Gabriel: mais altos)
+TREMOR_MAX = 1.5
+# 27/09 22:30 (pedido do Gabriel): sustos INDEPENDENTES, cada um preso a sua sala/caixa; nenhum cancela outro.
+# MaxSustosPorLoop do EVENTS_Hub (instancia) 1 -> 99 (sem limite pratico). O gap de 3 s so atrasa (JanelaS 20-30 s) e
+# garante >= 3 s entre dois piscares. Os sustos reserva (que so existiam por causa da cota) saem do mapa.
+MAX_SUSTOS = 99
+SUSTOS_REMOVIDOS = ["EV_Susto_VultoReserva", "EV_Susto_PiscarPorta", "EV_Susto_PassosPorta", "EV_Susto_EstrondoPorta"]  # 27/09: EscalaTremorMax do EVENTS_Hub (instancia); o estrondo a 0.5 passava despercebido
 VULTO_SM = DIR + "/SM_LuxVulto"   # silhueta humana (pose de referencia do SKM_Manny_Simple) no lugar do cilindro
 VULTO_M = DIR + "/M_LuxVulto"     # unlit; a silhueta preta sumia no corredor escuro (capturas 27/09)
 VULTO_MI = DIR + "/MI_LuxVulto"
@@ -1493,7 +1539,7 @@ def estrutural(hub, evt):
 # ------------------------------------------------------------------ geometria e plano
 def geo():
     g = {}
-    for lab in ("LOOP_Chegada", "LOOP_PortaSala", "LOOP_Manager", "BP_BaseDoor7", "Sala_Cadeira_Leitura", "LOOPC_L4_Cadeira",
+    for lab in ("LOOP_Chegada", "LOOP_PortaSala", "LOOP_Manager", "BP_BaseDoor7", "Sala_Cadeira_Leitura", "LOOPC_L4_Cadeira", CADEIRA_JANTAR,
                 "LUX_Luz_Corredor_Arandela3", "LUX_Luz_Corredor_Arandela5"):
         a = por_label(lab)
         if not a:
@@ -1512,6 +1558,11 @@ def geo():
 
 def ev(label, idnum, cat, loops, caixa, som_pt, **cfg):
     return {"label": label, "Id": label, "IdNum": idnum, "Categoria": cat, "Loops": loops, "caixa": caixa, "som": som_pt, "cfg": cfg}
+
+
+def fx(nome):
+    (cx, cy), (ex, ey) = FAIXAS[nome]
+    return ((cx, cy, Z_FAIXA[0]), (ex, ey, Z_FAIXA[1]))
 
 
 def plano(g):
@@ -1538,7 +1589,8 @@ def plano(g):
     # 27/09: a memoria (1a metade apos o gatilho) toca primeiro; o gap de 10 s poe o sussurro na entrada da sala,
     # com o som atras do jogador, no fim do corredor
     # 27/09 (etapa 4): caixa menor, termina em y -900 para a caixa da cadeira (susto do loop 4) comecar logo depois
-    sus = ev("EV_Sussurro_Corredor", 14, 0, [4], ((-2800.0, -820.0, 110.0), (100.0, 80.0, 110.0)), (-3275.0, -420.0, 110.0),
+    # 27/09 21:14: caixa S1 (entrada da sala, parede a parede)
+    sus = ev("EV_Sussurro_Corredor", 14, 0, [4], fx("S1"), (-3275.0, -420.0, 110.0),
              Som="PORTAL", Volume=0.3, DuracaoMaxS=3.5, FadeS=1.5, bSoQuandoDeCostas=True, CosCostas=-0.2, JanelaS=20.0, DistMaxJogador=1100.0,
              InicioS=54.5)  # 27/09: o inicio da faixa e fade-in (2 s: rms -34.1/pico -18.5 dBFS); 54.5 s: rms -18.3/pico -3.9
     # EV 15: 1a metade depois do gatilho; som 250 cm dentro do quarto
@@ -1547,7 +1599,8 @@ def plano(g):
              (d7.x, d7.y + 250.0, 110.0), Som="MEMORIES", Volume=0.25, DuracaoMaxS=5.0, FadeS=2.0, JanelaS=25.0, DistMaxJogador=1000.0,
              InicioS=96.5)  # 27/09: 2 s iniciais rms -33.3/pico -14.8; 96.5 s: rms -19.2/pico -4.6, crescendo (-18.1 nos 2 s seguintes)
     # EV 16: LOOP_PortaSala + 300 cm rumo a Sala; som 150 cm atras da porta
-    por = ev("EV_Portal_Sala", 16, 0, [5], ((ps.x, ps.y + 300.0, 110.0), (150.0, 100.0, 110.0)), (ps.x, ps.y - 150.0, 110.0),
+    # 27/09 21:14: faixa SP (antes da porta, parede a parede)
+    por = ev("EV_Portal_Sala", 16, 0, [5], fx("SP"), (ps.x, ps.y - 150.0, 110.0),
              Som="MIRAGE", Pitch=0.7, Volume=0.3, DuracaoMaxS=4.0, FadeS=2.0, JanelaS=8.0, DistMaxJogador=900.0,
              InicioS=40.5)  # 27/09: 2 s iniciais rms -48.8/pico -35.5; 40.5 s: rms -17.8/pico -6.2, crescendo (-17.3)
     barulhos = [bat, sus, mem, por]
@@ -1574,31 +1627,66 @@ def plano(g):
             # (alvo do "olhando" e dos passos de madeira). Caixa mais perto: o jogador entra a ~7 m e sai a ~5 m do caminho
             ev("EV_Susto_Vulto", 21, 1, [2], ((-3275.0, 40.0, 110.0), (mw, 100.0, 110.0)), (-3215.0, -560.0, 130.0),
                aparicao=(-3250.0, -560.0), bAparicao=False, bSoQuandoOlhando=True, CosOlhar=0.90, bExigirLinhaVisao=True,
-               JanelaS=30.0, Som="VULTO_PASSO", Repeticoes=4, IntervaloRepS=0.2, Pitch=1.0, Volume=1.1,
+               JanelaS=30.0, Som="VULTO_PASSO", Repeticoes=4, IntervaloRepS=0.15, Pitch=1.0, Volume=1.5,  # 21:49: 4 passos em 0.6 s
                SomCamada=None, RelCamada=0.0,  # 17:33: passos altos e pesados (o peso esta no proprio SC_LuxVultoPasso)
-               DeslocPorRep=(70.0, 0.0, 0.0)),
+               DeslocPorRep=(110.0, 0.0, 0.0)),  # acompanha a corrida mais rapida
             # 27/09 17:33: InicioS 51.4 -> o inicio da faixa BROKEN e quase mudo (-31.5 dBFS nos 2.5 s iniciais)
             # piscar: o corredor nao tem outras luzes (arandelas 3/5 ja apagam no loop 3; RectLight5/7 estao em 0) -> candelabros
             # da sala perto da porta (desvio aprovado 27/09). Caixa na entrada da sala: o jogador entra nela ainda durante o
             # bloqueio da distorcao, o susto reserva a vez e dispara quando o bloqueio acaba, antes do rangido
-            ev("EV_Susto_Arandelas", 22, 1, [3], ((-2600.0, -1130.0, 110.0), (150.0, 150.0, 110.0)), (-2955.0, -1890.0, 160.0),
+            # 21:14: rota OESTE/MEIO (faixa S2O)
+            ev("EV_Susto_Arandelas", 22, 1, [3], fx("S2O"), (-2955.0, -1890.0, 160.0),
                TagLuzes=TAG_LUZES, PadraoPiscar=[0.30, 0.45, 0.25, 0.60, 0.35, 0.40], bApagarNoFim=True, bSomNoFimDoPiscar=True,
-               Som="BROKEN", Pitch=1.25, Volume=1.13, SomCamada="HL", PitchCamada=0.4, RelCamada=0.75, DuracaoMaxS=2.0, FadeS=0.8, InicioS=51.4,
+               Som="BROKEN", Pitch=1.25, Volume=1.18, SomCamada="HL", PitchCamada=0.4, RelCamada=0.75, DuracaoMaxS=2.0, FadeS=0.8, InicioS=51.4, Atenuacao="SA_SUSTO",
                JanelaS=30.0, DistMaxJogador=1100.0),
             # cadeira do loop 4 gira para o limiar corredor->sala depois de ser vista, quando o jogador esta de costas.
             # Caixa comeca 5 cm depois da do sussurro: o jogador entra nela antes do sussurro sair do gap e o susto reserva a vez
             # 27/09: comeca virada para o piano e gira para ficar de frente para quem vai para a porta; dispara assim que ela sai
             # da tela (CosCostas 0.3, ~72 graus), antes de o jogador chegar perto da porta; rangido 0.35 para ele se virar
-            ev("EV_Susto_Cadeira", 23, 1, [4], ((-2465.0, -1327.5, 110.0), (235.0, 422.5, 110.0)), (cad.x, cad.y, 60.0),
+            # 21:14: rota OESTE/MEIO (faixa S2O)
+            ev("EV_Susto_Cadeira", 23, 1, [4], fx("S2O"), (cad.x, cad.y, 60.0),
                AlvoGirar="LOOPC_L4_Cadeira", GiroYaw=round(giro, 1), bExigirVistoAntes=True, bSoQuandoDeCostas=True, CosCostas=0.3,
-               Som="SCD", Pitch=0.45, Volume=0.88, JanelaS=25.0, DistMaxJogador=900.0),
+               Som="SCD", Pitch=0.45, Volume=1.17, JanelaS=25.0, DistMaxJogador=900.0, Atenuacao="SA_SUSTO"),
             # estrondo entre a sala e a porta, som no limiar corredor->sala, atras do jogador
             # 27/09: disparou a 7 m no teste e passou despercebido. Som na entrada da sala (~4 m atras de quem vai para a porta),
             # tremor 1.5, costas relaxado (-0.2) e caixa cobrindo a entrada da sala inteira
-            ev("EV_Susto_Estrondo", 24, 1, [5], ((-2650.0, -1100.0, 110.0), (250.0, 250.0, 110.0)), (-2800.0, -950.0, 110.0),
-               Som="SCD", Pitch=0.55, Volume=1.13, SomCamada="HL", PitchCamada=0.35, RelCamada=0.75, EscalaTremor=1.5,
+            # 21:14: rota OESTE/MEIO (faixa S2O), som do lado do piano, atras de quem vai para a porta
+            ev("EV_Susto_Estrondo", 24, 1, [5], fx("S2O"), (-2900.0, -1000.0, 110.0),
+               Som="SCD", Pitch=0.55, Volume=1.31, SomCamada="HL", PitchCamada=0.35, RelCamada=0.75, EscalaTremor=1.5, Atenuacao="SA_SUSTO",
                bSoQuandoDeCostas=True, CosCostas=-0.2, JanelaS=25.0, DistMaxJogador=1100.0)]
+        sustos += sustos_de_rota(g)
     return marcas + barulhos + sustos
+
+
+def sustos_de_rota(g):
+    """27/09 21:14 (aprovado): um susto por rota em cada loop; o primeiro que disparar cancela os outros pela cota do hub
+    (MaxSustosPorLoop = 1). Reservas na S1 (L2) e na S3 (L3-5) para quem nao olhou/nao virou de costas."""
+    piscar = dict(PadraoPiscar=[0.30, 0.45, 0.25, 0.60, 0.35, 0.40], bApagarNoFim=True, bSomNoFimDoPiscar=True, Som="BROKEN", Pitch=1.25,
+                  Volume=1.18, SomCamada="HL", PitchCamada=0.4, RelCamada=0.75, DuracaoMaxS=2.0, FadeS=0.8, InicioS=51.4,
+                  Atenuacao="SA_SUSTO", JanelaS=30.0, DistMaxJogador=1100.0)
+    passos = dict(Som="VULTO_PASSO", Repeticoes=4, IntervaloRepS=0.2, Pitch=1.0, Volume=1.5, SomCamada=None, RelCamada=0.0,
+                  Atenuacao="SA_SUSTO", bSoQuandoDeCostas=True, CosCostas=-0.2, JanelaS=25.0, DistMaxJogador=1100.0)
+    estrondo = dict(Som="SCD", Pitch=0.55, Volume=1.31, SomCamada="HL", PitchCamada=0.35, RelCamada=0.75, EscalaTremor=1.5,
+                    Atenuacao="SA_SUSTO", bSoQuandoDeCostas=True, CosCostas=-0.2, JanelaS=25.0, DistMaxJogador=1100.0)
+    cj = g[CADEIRA_JANTAR]
+    cl = cj.get_actor_location()
+    alvo = math.degrees(math.atan2(CADEIRA_JANTAR_ALVO[1] - cl.y, CADEIRA_JANTAR_ALVO[0] - cl.x))
+    giro_j = (alvo - cj.get_actor_rotation().yaw + 180.0) % 360.0 - 180.0
+    return [
+        # L3
+        ev("EV_Susto_PiscarLeste", 26, 1, [3], fx("S2L"), (-2112.0, -676.0, 138.0), TagLuzes=TAG_LESTE, **piscar),
+        ev("EV_Susto_PiscarEscritorio", 27, 1, [3], fx("ESC"), (-3836.0, -1136.0, 97.0), TagLuzes=TAG_ESC, bExigirDentro=True, **piscar),
+        # L4
+        ev("EV_Susto_CadeiraJantar", 29, 1, [4], fx("S2L"), (cl.x, cl.y, 60.0), AlvoGirar=CADEIRA_JANTAR, GiroYaw=round(giro_j, 1),
+           bExigirVistoAntes=True, CosOlhar=0.65, bSoQuandoDeCostas=True, CosCostas=0.3, Som="SCD", Pitch=0.45, Volume=1.17,
+           JanelaS=25.0, DistMaxJogador=900.0, Atenuacao="SA_SUSTO"),
+        ev("EV_Susto_PassosEscritorio", 30, 1, [4], fx("ESC"), (-3275.0, -500.0, 60.0), DeslocPorRep=(0.0, 70.0, 0.0),
+           bExigirDentro=True, **passos),
+        # L5
+        ev("EV_Susto_EstrondoLeste", 32, 1, [5], fx("S2L"), (-2200.0, -800.0, 110.0), **estrondo),
+        ev("EV_Susto_EstrondoEscritorio", 33, 1, [5], fx("ESC"), (-3250.0, -690.0, 110.0), bExigirDentro=True, **estrondo),
+        # 22:30: reservas na S1/S3 removidos (sustos independentes)
+        ]
 
 
 def escritorio():
@@ -1625,6 +1713,8 @@ def aplica_cfg(a, e):
             v = unreal.Vector(*v)
         if k == "AlvoGirar":
             v = por_label(v)
+        if k == "Atenuacao":
+            v = EAL.load_asset(SA_SUSTO if v == "SA_SUSTO" else SA)
         if k == "TagLuzes":
             v = unreal.Name(v)
         a.set_editor_property(k, v)
@@ -1673,6 +1763,12 @@ def ensure_atores(hub_bp, evt_bp, g):
     if abs(hub_i.get_editor_property("GapMinS") - GAP_MIN_S) > 1e-6:
         hub_i.set_editor_property("GapMinS", GAP_MIN_S)
         mudou.append("EVENTS_Hub.GapMinS=%.1f" % GAP_MIN_S)
+    if hub_i.get_editor_property("MaxSustosPorLoop") != MAX_SUSTOS:
+        hub_i.set_editor_property("MaxSustosPorLoop", MAX_SUSTOS)
+        mudou.append("EVENTS_Hub.MaxSustosPorLoop=%d" % MAX_SUSTOS)
+    for a in [a for a in atores() if a.get_actor_label() in SUSTOS_REMOVIDOS]:
+        mudou.append("removido %s" % a.get_actor_label())
+        eas.destroy_actor(a)
     if abs(hub_i.get_editor_property("VolumeMax") - VOLUME_MAX) > 1e-6:
         hub_i.set_editor_property("VolumeMax", VOLUME_MAX)
         mudou.append("EVENTS_Hub.VolumeMax=%.1f" % VOLUME_MAX)
@@ -1715,18 +1811,24 @@ def ensure_atores(hub_bp, evt_bp, g):
 def prepara_sustos():
     """Tags LUX_EV_Arandela nas luzes do piscar, cadeira do loop 4 Movable e MotivosReserva no Class Default do evento."""
     mud = []
-    for lab in LUZES_SUSTO:
-        a = por_label(lab)
-        if not a:
-            raise Aborta("luz %s nao encontrada" % lab)
-        c = a.get_components_by_class(unreal.LightComponent)[0]
-        if "STATIC" in str(c.get_editor_property("mobility")):
-            c.set_editor_property("mobility", unreal.ComponentMobility.MOVABLE)
-            mud.append(lab + " -> Movable")
-        tags = [str(t) for t in a.tags]
-        if TAG_LUZES not in tags:
-            a.set_editor_property("tags", [unreal.Name(x) for x in tags + [TAG_LUZES]])
-            mud.append(lab + " +" + TAG_LUZES)
+    for tag, labs in LUZES_POR_TAG.items():
+        for lab in labs:
+            a = por_label(lab)
+            if not a:
+                raise Aborta("luz %s nao encontrada" % lab)
+            c = a.get_components_by_class(unreal.LightComponent)[0]
+            if "MOVABLE" not in str(c.get_editor_property("mobility")):
+                c.set_editor_property("mobility", unreal.ComponentMobility.MOVABLE)
+                mud.append(lab + " -> Movable")
+            tags = [str(t) for t in a.tags]
+            if tag not in tags:
+                a.set_editor_property("tags", [unreal.Name(x) for x in tags + [tag]])
+                mud.append(lab + " +" + tag)
+    cj = por_label(CADEIRA_JANTAR)
+    rcj = cj.get_editor_property("root_component")
+    if "MOVABLE" not in str(rcj.get_editor_property("mobility")):
+        rcj.set_editor_property("mobility", unreal.ComponentMobility.MOVABLE)
+        mud.append(CADEIRA_JANTAR + " -> Movable")
     cad = por_label("LOOPC_L4_Cadeira")
     rc = cad.get_editor_property("root_component")
     if "MOVABLE" not in str(rc.get_editor_property("mobility")):
@@ -1758,7 +1860,7 @@ def eventos_mapa():
         for k in ("Id", "IdNum", "Categoria", "Loops", "JanelaS", "DistMaxJogador", "bSoQuandoDeCostas", "CosCostas",
                   "bSoQuandoOlhando", "bExigirVistoAntes", "Volume", "RelCamada", "Som", "SomCamada", "InicioS", "DuracaoMaxS",
                   "BloqueioS", "Probabilidade", "AtrasoS", "PadraoPiscar", "Repeticoes", "IntervaloRepS",
-                  "bAparicao", "CosOlhar", "AparicaoDistMin", "bExigirLinhaVisao", "AlvoGirar", "GiroYaw", "TagLuzes"):
+                  "bAparicao", "CosOlhar", "AparicaoDistMin", "bExigirLinhaVisao", "AlvoGirar", "GiroYaw", "TagLuzes", "bExigirDentro"):
             e[k] = a.get_editor_property(k)
         e["Loops"] = list(e["Loops"])
         ap = [c for c in a.get_components_by_class(unreal.StaticMeshComponent) if c.get_name().startswith("Aparicao")][0]
@@ -1798,16 +1900,17 @@ def olhando(e, pos, ang):
 
 
 # 27/09: corrida desligada (Tools/Player/disable_sprint.py): perfil "correndo" fica fora (N/A)
-PERFIS = (("andando", 150.0, False), ("olhando_em_volta", 150.0, True))
+# 27/09 21:49: caminhada 150 -> 170 cm/s (Tools/Player/velocidade_andar.py)
+PERFIS = (("andando", 170.0, False), ("olhando_em_volta", 170.0, True))
 
 
-def simular(evs, g, v=150.0, varre=False):
+def simular(evs, g, v=150.0, varre=False, rota=None):
     """Replica as regras do hub/evento andando no caminho a v cm/s, 1 vez por loop. Retorna {loop: [(id, acao, t, motivo)]}.
     varre=True: a camera oscila +-60 graus em volta da direcao da caminhada (periodo 4 s).
     Barulhos sao avaliados antes dos sustos em cada passo (pior caso para a reserva).
     FIRED de susto leva a distancia do jogador ate o som/aparicao; a cadeira leva tambem se foi vista depois de girar."""
     evs = sorted(evs, key=lambda e: e["Categoria"])
-    pts = caminho(g)
+    pts = [tuple(p) for p in ROTAS[rota]] if rota else caminho(g)
     gl, gx = g["gatilho"]
     hub_i = [a for a in atores() if a.get_class().get_name().startswith("BP_LuxEventHub")][0]
     hub_cfg = {"gap": hub_i.get_editor_property("GapMinS"), "post": hub_i.get_editor_property("JanelaPosTrocaS"),
@@ -1902,6 +2005,10 @@ def simular(evs, g, v=150.0, varre=False):
                         reserva_ate = t + 0.5
                     if m in ("troca", "pos_troca", "aguarda_marca", "externo", "distorcao", "reserva"):
                         s["tent"] = t
+                    if e.get("bExigirDentro") and not den:
+                        out.append((e["label"], "SKIP", round(t, 2), "fora:" + m))
+                        s["feito"] = True
+                        continue
                     if t - s["tent"] > e["JanelaS"]:
                         out.append((e["label"], "SKIP", round(t, 2), m))
                         s["feito"] = True
@@ -1963,7 +2070,11 @@ def verificar():
         rel = e["RelCamada"] if e["SomCamada"] else 0.0
         if e["Volume"] * (1 + rel) > VOLUME_MAX + 1e-6:
             falhas.append("%s: volume %.2f > %.1f" % (e["label"], e["Volume"] * (1 + rel), VOLUME_MAX))
-        db = -24.0 * max(0.0, e["DistMaxJogador"] - 200.0) / 1800.0
+        att = e["a"].get_editor_property("Atenuacao")
+        st_ = att.get_editor_property("attenuation") if att else None
+        inner = st_.get_editor_property("attenuation_shape_extents").x if st_ else 200.0
+        fall = st_.get_editor_property("falloff_distance") if st_ else 1800.0
+        db = -24.0 * max(0.0, e["DistMaxJogador"] - inner) / fall
         if db < -12.0 - 1e-6:
             falhas.append("%s: ganho em D=%.0f = %.1f dB (< -12)" % (e["label"], e["DistMaxJogador"], db))
         if e["Categoria"] != 2 and 1 in e["Loops"]:
@@ -1995,7 +2106,8 @@ def verificar():
     for L in range(1, 6):
         nb = len([e for e in evs if e["Categoria"] == 0 and L in e["Loops"]])
         ns = len([e for e in evs if e["Categoria"] == 1 and L in e["Loops"]])
-        if nb > 3 or ns > 1:
+        # 21:14: varios sustos por loop sao ALTERNATIVAS de rota; a cota do hub (MaxSustosPorLoop = 1) deixa passar um so
+        if nb > 3 or ns > 5:
             falhas.append("loop %d: %d barulhos, %d sustos configurados" % (L, nb, ns))
     nao_marc = [e for e in evs if e["Categoria"] != 2]
     for i, a in enumerate(nao_marc):
@@ -2003,15 +2115,27 @@ def verificar():
             if set(a["Loops"]) & set(b_["Loops"]) and abs(a["c"].x - b_["c"].x) < a["x"].x + b_["x"].x and abs(a["c"].y - b_["c"].y) < a["x"].y + b_["x"].y:
                 falhas.append("caixas sobrepostas no mesmo loop: %s e %s" % (a["label"], b_["label"]))
     sim = {}
+    sustos_labels = {e["label"] for e in evs if e["Categoria"] == 1}
     for nome, v, varre in PERFIS:
-        sim[nome] = simular(evs, g, v, varre)
-        for L, res in sim[nome].items():
-            dist_loop = any(e["label"] == "MARCA_Distorcao" and L in e["Loops"] for e in evs)
-            for lab, acao, t, m in res:
-                if acao in ("SKIP", "PENDENTE_NA_PORTA", "NAO_ALCANCADO") and [e for e in evs if e["label"] == lab and e["Categoria"] == 1]:
-                    msg = "susto %s nao disparou (%s, %s) no loop %d, perfil %s" % (lab, acao, m, L, nome)
-                    # correndo, a porta chega antes de a distorcao (14.6 s) acabar: limite conhecido, vira aviso
-                    (avisos if (nome == "correndo" and dist_loop) else falhas).append(msg)
+        for rota in ROTAS:
+            chave = "%s|%s" % (nome, rota)
+            sim[chave] = simular(evs, g, v, varre, rota)
+            for L, res in sim[chave].items():
+                if L == 1:
+                    continue
+                # 22:30: sustos independentes. Todo susto em cuja caixa o jogador entrou tem de disparar; nenhum pode parar
+                # por "cota". Quem nao disparou por estar dentro do bloqueio da distorcao e ter saido da sala (caixa com
+                # bExigirDentro) vira aviso: e a regra da distorcao, nao um susto cancelando outro.
+                for lab, acao, t, m in res:
+                    if lab not in sustos_labels or acao in ("FIRED", "NAO_ALCANCADO", "VISTO_DEPOIS", "NAO_VISTO_DEPOIS"):
+                        continue
+                    msg = "susto %s nao disparou no loop %d, rota %s, perfil %s (%s, %s)" % (lab, L, rota, nome, acao, m)
+                    if "cota" in str(m):
+                        falhas.append(msg)
+                    elif any(k in str(m) for k in ("externo", "distorcao", "aguarda_marca", "pos_troca")):
+                        avisos.append(msg)
+                    else:
+                        falhas.append(msg)
     if sujos():
         avisos.append("pacotes sujos: %s" % sujos())
     return falhas, avisos, sim
@@ -2050,7 +2174,7 @@ def instalar():
         raise Aborta("feche o PIE")
     if unreal.LevelSequenceEditorBlueprintLibrary.get_current_level_sequence():
         raise Aborta("feche o Sequencer")
-    proprios = {HUB, EVT, SA, CS, MI, SAVE, VULTO_SM, VULTO_M, VULTO_MI, "/Game/Masion/Mapa_B"}
+    proprios = {HUB, EVT, SA, SA_SUSTO, CS, MI, SAVE, VULTO_SM, VULTO_M, VULTO_MI, "/Game/Masion/Mapa_B"}
     if sujos() and not ("retomar" in sys.argv and set(sujos()) <= proprios):
         raise Aborta("ha pacotes nao salvos antes de comecar: %s" % sujos())
     if ESCRITORIO_NO_LUGAR_DA_COZINHA is None:
@@ -2064,14 +2188,14 @@ def instalar():
     f, av, sim = verificar()
     for nome, res_p in sim.items():
         for L, res in res_p.items():
-            w("simulacao %s loop %d: %s" % (nome, L, res))
+            w("simulacao %s loop %d: %s" % (nome, L, [x for x in res if x[1] in ("FIRED", "MARCA")]))
     if f:
         raise Aborta("verificar FAIL (nada salvo): %s" % f)
-    esperado = {HUB, EVT, SA, CS, MI, SAVE, VULTO_SM, VULTO_M, VULTO_MI, "/Game/Masion/Mapa_B"}
+    esperado = {HUB, EVT, SA, SA_SUSTO, CS, MI, SAVE, VULTO_SM, VULTO_M, VULTO_MI, "/Game/Masion/Mapa_B"}
     extra = set(sujos()) - esperado
     if extra:
         raise Aborta("pacotes sujos inesperados: %s" % sorted(extra))
-    for a in novos + [hub, evt] + [EAL.load_asset(p) for p in (SA, CS, MI, SAVE, VULTO_M, VULTO_MI, VULTO_SM) if p in sujos()]:
+    for a in novos + [hub, evt] + [EAL.load_asset(p) for p in (SA, SA_SUSTO, CS, MI, SAVE, VULTO_M, VULTO_MI, VULTO_SM) if p in sujos()]:
         if a.get_outermost().get_name() not in sujos():
             continue
         w("salvo", a.get_path_name(), EAL.save_loaded_asset(a, False))
@@ -2105,7 +2229,7 @@ def main():
             f, av, sim = verificar()
             for nome, res_p in sim.items():
                 for L, res in res_p.items():
-                    w("simulacao %s loop %d: %s" % (nome, L, res))
+                    w("simulacao %s loop %d: %s" % (nome, L, [x for x in res if x[1] in ("FIRED", "MARCA")]))
             w("verificar:", ("FAIL %s" % f) if f else "PASS", "| avisos:", av or "nenhum")
         else:
             {"sondar": sondar, "instalar": instalar, "desfazer": desfazer}[modo]()

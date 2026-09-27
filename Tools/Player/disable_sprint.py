@@ -14,7 +14,7 @@ IMC = "/Game/FPMovement/Player/Input/IMC_Default"
 IA_SPRINT = "/Game/FPMovement/Player/Input/Actions/IA_Sprint"
 BP = "/Game/Characters/MixamoFP/Blueprints/BP_Player_Cowboy"
 TECLAS = ("LeftShift",)  # o mapeamento original do IA_Sprint no IMC_Default
-OUTRAS = ("IA_Crouch", "IA_Flashlight", "IA_Interact", "IA_Move", "IA_Look")
+OUTRAS = ("IA_Crouch", "IA_Interact", "IA_Move", "IA_Look")  # 27/09: IA_Flashlight saiu (F agora e o IA_Lampiao, Tools/Player/lampiao.py)
 SNAP = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sprint_original.json")
 
 EAL = unreal.EditorAssetLibrary
@@ -55,8 +55,8 @@ def verificar():
         falhas.append("IA_Sprint ainda tem teclas: %s" % teclas("IA_Sprint"))
     cdo = unreal.get_default_object(EAL.load_asset(BP).generated_class())
     v = cdo.get_editor_property("character_movement").get_editor_property("max_walk_speed")
-    if abs(v - 150.0) > 1e-3:
-        falhas.append("MaxWalkSpeed = %s (esperado 150)" % v)
+    if abs(v - 170.0) > 1e-3:  # 27/09 21:49: caminhada 150 -> 170 (Tools/Player/velocidade_andar.py)
+        falhas.append("MaxWalkSpeed = %s (esperado 170)" % v)
     for nome in OUTRAS:
         if not teclas(nome):
             falhas.append("%s ficou sem tecla" % nome)
