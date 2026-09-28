@@ -1,0 +1,13 @@
+{
+ "SM_Flashlight": {
+  "relative_location": [
+   0.0,
+   0.0,
+   0.0
+  ],
+  "hidden_in_game": false
+ },
+ "Flashlight_Light": {
+  "hidden_in_game": false
+ }
+}

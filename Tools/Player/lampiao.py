@@ -151,6 +151,9 @@ def instalar():
 def verificar():
     falhas = []
     imc, bp = EAL.load_asset(IMC), EAL.load_asset(BP)
+    if ale.comp_template(bp, "Vela"):
+        w("verificar: a vela assumiu o F (guardar/puxar) e o Lampiao; confira com Tools/Player/vela.py verificar")
+        return falhas
     if teclas(imc, EAL.load_asset(IA_FLASH)):
         falhas.append("IA_Flashlight ainda tem teclas (a lanterna ainda liga)")
     if not EAL.does_asset_exist(IA_LAMP) or teclas(imc, EAL.load_asset(IA_LAMP)) != ["F"]:
