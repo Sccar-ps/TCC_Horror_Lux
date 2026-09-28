@@ -3,9 +3,11 @@
 # (eixo = Y do socket hand_r_Flashlight, raio ~2,9 cm), com o antebraco em pe. Uma haste vertical nao passa nesse punho:
 # a vela ficava 3,6-10,6 cm longe dos dedos, alinhada com o comprimento da mao.
 # Correcao estrutural (nao mexe nas animacoes da lanterna, que sao do FPMovement):
-#  1) Pose de pega calculada dos ossos reais (idle, quadro 0): a haste fica na palma, logo abaixo dos nos dos dedos
-#     (MCP); cada dedo (e o polegar) fecha ate encostar na haste; o punho gira para a haste ficar VERTICAL; ombro e
-#     cotovelo saem de um IK de 2 ossos, escolhendo o alvo que menos muda o pulso da animacao original.
+#  1) Pose de pega sobre os ossos reais (idle, quadro 0): haste na palma, dedos e polegar fechados nela (tabela
+#     PEGA_DEDOS); o punho gira para a haste ficar VERTICAL; ombro e cotovelo saem de um IK de 2 ossos.
+#     28/09 (v17): a tabela vem da MALHA REAL da pele (Tools/Player/vela_mao_offline/, fora da Unreal): o modelo antigo
+#     (dedo = cilindro de 0,75 cm no osso) errava ate 1,6 cm -> palma e indicador entravam no copinho/colar, polegar
+#     atravessava o medio/anelar por dentro do punho e o minimo ficava aberto.
 #  2) AS_LuxVela_Pega: essa pose gravada como ADITIVA em espaco local (base = AS_Flashlight_Idle, quadro 0).
 #  3) ABP_Arms_Cowboy: Apply Additive (AS_LuxVela_Pega) no ramo da lanterna, antes do Blend Poses by bool.
 #     Vale para idle, andar, pulo e para as montagens de puxar/guardar (o Slot 'Arms' esta dentro do ramo).
@@ -24,20 +26,41 @@ PEGA = DIR + "/AS_LuxVela_Pega"
 SOCKET = "hand_r_Vela"
 # camera <- FirstPersonMesh (template herdado do BP_Player; lido no PIE: loc (-13.77, 0, -163.17), yaw -90)
 MESH_NA_CAMERA = ((-13.765, 0.0, -163.173), -90.0)
-# 28/09: 0.42 = menor escala em que os 4 dedos fecham na haste sem entrar no prato/copinho (modo "escalas":
-# 0.30 -> indicador 0,6 cm dentro do copinho e minimo 0,5 cm dentro do colar; 0.42 -> folga 0,0 em todos).
-# O punho tem ~7 cm do minimo ao indicador; a haste livre precisa de ~7,5 cm. Vela de 17,5 cm (castical de mao real).
-ESCALA_VELA = 0.42
-HASTE_R = 1.75 * ESCALA_VELA          # raio da haste do SM_Candles_NN_01c (1,75 na malha) -> 0,53 cm
-HASTE_MEIO = 15.6 * ESCALA_VELA       # meio da haste livre (6,7..24,5 na malha) acima da base -> 4,7 cm: onde o punho fecha
-PALMA = 1.2                           # centro da haste: 1,2 cm + raio abaixo da linha dos nos (MCP), lado da palma
-PUNHO_AO_PULSO = 0.8                  # e 0,8 cm na direcao do pulso (a haste fica na dobra da palma)
-DEDO_R = 0.75                         # meia espessura do dedo: contato quando a falange fica a HASTE_R + DEDO_R do eixo
-PONTA = {"index": 2.2, "middle": 2.4, "ring": 2.3, "pinky": 2.0, "thumb": 2.6}   # falange distal (cm)
+# 28/09 (v17): 0.50. Medido na pele: a palma ocupa 9,3 cm ao longo da haste; a haste livre (6,7..24,5 na malha) tem
+# 7,5 cm em 0.42 (palma 1,6 cm dentro do colar/copinho) e 8,9 cm em 0.50 (cabe, com o indicador encostado sob o
+# copinho e o minimo sobre o colar, como a guarda e o pomo de uma espada). Vela de 20,9 cm, haste de 1,75 cm.
+ESCALA_VELA = 0.50
+HASTE_R = 1.75 * ESCALA_VELA          # raio da haste do SM_Candles_NN_01c (1,75 na malha)
+HASTE_MEIO = 15.6 * ESCALA_VELA       # meio da haste livre acima da base: onde o punho fecha
 DEDOS = ("index", "middle", "ring", "pinky")
+# haste no espaco do hand_r (cm): centro e direcao (minimo -> indicador); a palma encosta nela
+HASTE_CENTRO = (-7.45, 2.79, -0.15)
+HASTE_EIXO = (-0.2144, -0.0289, 0.9763)
+# graus somados a rotacao local do idle (quadro 0), na ordem, no eixo local do osso. Flexao = Z negativo, Y = abertura.
+# Resultado na pele real (vela 0.50), em cm (negativo = pele apertada):
+#  - falanges proximal e media dos 4 dedos encostadas na haste (-0,05..+0,01); pontas do anelar/minimo na haste,
+#    ponta do medio na palma; palma encostada (+0,02); nada entra no metal (max 0,05)
+#  - dedos lado a lado, encostados sem se cruzar (indicador/medio/anelar/minimo: 0,0); indicador e medio convergem
+#    5,5/3,6 graus para o anelar e o minimo 4,1 (o punho fechado converge para o pulso)
+#  - polegar: falange proximal abraca a haste do outro lado (+0,04) e a ponta apoia no dorso do indicador (-0,09)
+#  - total desde a pose de referencia do esqueleto: MCP 52-65, PIP 50-69, DIP 34-47 (cascata para o minimo);
+#    polegar base 14, MCP 46, IP 42. Nenhum osso fora da amplitude (MCP 90, PIP 110, DIP 80).
+PEGA_DEDOS = {
+    "index_01_r": (("Z", -21.3), ("Y", -5.5)), "index_02_r": (("Z", -23.5),), "index_03_r": (("Z", -16.9),),
+    "middle_01_r": (("Z", -21.6), ("Y", -3.6)), "middle_02_r": (("Z", -20.9),), "middle_03_r": (("Z", -14.5),),
+    "ring_metacarpal_r": (("Z", 3.0),),
+    "ring_01_r": (("Z", -16.2), ("Y", 0.9)), "ring_02_r": (("Z", -23.8),), "ring_03_r": (("Z", -17.6),),
+    "pinky_metacarpal_r": (("Z", -0.2),),
+    "pinky_01_r": (("Z", -21.4), ("Y", 4.1)), "pinky_02_r": (("Z", -25.0),), "pinky_03_r": (("Z", -17.5),),
+    "thumb_01_r": (((0.731, -0.517, 0.446), 32.3),),
+    "thumb_02_r": (("Z", -43.4), ("Y", 14.8)), "thumb_03_r": (("Z", -42.1),),
+}
 # cm do olho ate a haste (None = o solver escolhe o menor esforco do pulso, que da ~44 cm com o braco quase esticado).
 # 40 cm: pulso flexao ~15, desvio ~5, torcao ~37 (pronacao natural), cotovelo ~124; mais perto o pulso dobra 30-50 graus
 DIST_ALVO = 40
+# resultado da busca de 28/09 (DIST_ALVO 40): ponto da haste na camera e giro do punho. Fixo para a pose do braco nao
+# mudar a cada ajuste dos dedos (e a instalacao nao refazer a busca de ~20 s). None = procurar de novo.
+ALVO_FIXO = ((40.0, 4.0, -18.0), -30)
 LOG = os.path.join(unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_saved_dir()), "LuxSnapshots", "vela_pega_log.txt")
 
 
@@ -148,129 +171,38 @@ def dir_cam_para_cs(v):
 
 # ------------------------------------------------------------------ dedos (no espaco da mao, hand_r = identidade)
 def fk_dedo(P, cadeia, deltas):
-    """cadeia de ossos a partir do hand_r; deltas (graus) somados no eixo Z local de cada falange -> pontos e rots"""
+    """cadeia de ossos a partir do hand_r; deltas = rotacoes extras (quat) por osso -> pontos e rots"""
     pos, rot = (0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 1.0)
     pts, rots = [], []
-    for i, b in enumerate(cadeia):
+    for b in cadeia:
         lp, lq = P.loc[b]
         pos = add(pos, qrot(rot, lp))
-        lq = qmul(lq, qaxis((0, 0, 1), deltas.get(b, 0.0)))
-        rot = qmul(rot, lq)
+        rot = qmul(rot, qmul(lq, deltas.get(b, (0.0, 0.0, 0.0, 1.0))))
         pts.append(pos)
         rots.append(rot)
     return pts, rots
 
 
-def dist_eixo(p, c, a):
-    r = sub(p, c)
-    return nrm(sub(r, mul(a, dot(r, a))))
-
-
 def haste_na_mao(P):
-    """centro e direcao (minimo -> indicador) da haste no espaco do hand_r.
-    Os nos dos dedos (MCP) formam um arco: cada dedo ganha um ponto de pega (MCP + lado da palma + um pouco para o
-    pulso) e a haste e a reta que melhor passa pelos 4 pontos."""
-    mcp = {d: fk_dedo(P, ["%s_metacarpal_r" % d, "%s_01_r" % d], {})[0][1] for d in DEDOS}
-    eixo0 = unit(sub(mcp["index"], mcp["pinky"]))
-    meio = mul(add(mcp["middle"], mcp["ring"]), 0.5)
-    # lado da palma: para onde os dedos fecham (media das pontas dos 4 dedos), perpendicular ao eixo
-    pontas = []
-    for d in DEDOS:
-        pts, rots = fk_dedo(P, ["%s_metacarpal_r" % d] + ["%s_0%d_r" % (d, i) for i in (1, 2, 3)], {})
-        pontas.append(add(pts[-1], qrot(rots[-1], (-PONTA[d], 0, 0))))
-    v = sub(mul(add(add(pontas[0], pontas[1]), add(pontas[2], pontas[3])), 0.25), meio)
-    palma = unit(sub(v, mul(eixo0, dot(v, eixo0))))
-    pulso = unit(sub((0, 0, 0), meio))
-    pulso = unit(sub(pulso, mul(eixo0, dot(pulso, eixo0))))
-    pega = [add(add(mcp[d], mul(palma, PALMA + HASTE_R)), mul(pulso, PUNHO_AO_PULSO)) for d in DEDOS]
-    centro = mul(add(add(pega[0], pega[1]), add(pega[2], pega[3])), 0.25)
-    # reta de minimos quadrados: iteracao de potencia na covariancia (4 pontos, 3x3)
-    cov = [[sum((p[i] - centro[i]) * (p[j] - centro[j]) for p in pega) for j in range(3)] for i in range(3)]
-    eixo = eixo0
-    for _ in range(50):
-        eixo = unit(tuple(sum(cov[i][j] * eixo[j] for j in range(3)) for i in range(3)))
-    if dot(eixo, eixo0) < 0:
-        eixo = mul(eixo, -1)
-    return centro, eixo, palma
+    """centro e direcao (minimo -> indicador) da haste no espaco do hand_r, e o lado da palma (+Y do hand_r)"""
+    eixo = unit(HASTE_EIXO)
+    palma = unit(sub((0.0, 1.0, 0.0), mul(eixo, eixo[1])))
+    return HASTE_CENTRO, eixo, palma
 
 
-# perfil do SM_Candles_NN_01c (altura na malha: raio na malha), medido nos vertices (vela_malhas_probe):
-# prato 0-3,3 (10,2), colar 3,4-6 (4,3), haste 6,7-24,5 (1,8), copinho 25,5-33 (ate 4,9), vela 33,5-41,7 (2,5)
-PERFIL = ((0.0, 10.2), (3.0, 10.2), (3.4, 4.3), (6.0, 4.3), (6.7, 1.8), (24.5, 1.8), (25.5, 4.6), (33.0, 4.9), (33.5, 2.5),
-          (41.7, 2.5))
-
-
-def raio_em(h_cm):
-    """raio (cm) do castical na altura h (cm acima da base), com a escala da vela"""
-    h = h_cm / ESCALA_VELA
-    if h <= PERFIL[0][0] or h >= PERFIL[-1][0]:
-        return 0.0
-    for (h0, r0), (h1, r1) in zip(PERFIL, PERFIL[1:]):
-        if h0 <= h <= h1:
-            return (r0 + (r1 - r0) * (h - h0) / ((h1 - h0) or 1)) * ESCALA_VELA
-    return 0.0
-
-
-def menor_dist(P, cadeia, dd, d, centro, eixo):
-    """menor folga das falanges (3 ultimos ossos + ponta) ate a SUPERFICIE do castical (perfil real na altura de cada
-    ponto): 0 = encostando, negativo = entrando no metal"""
-    pts, rots = fk_dedo(P, cadeia, dd)
-    pts = pts[-3:] + [add(pts[-1], qrot(rots[-1], (-PONTA[d], 0, 0)))]
-    m = 1e9
-    for a, b in zip(pts, pts[1:]):
-        for s in range(6):
-            q = add(a, mul(sub(b, a), s / 5.0))
-            h = dot(sub(q, centro), eixo) + HASTE_MEIO          # altura do ponto na vela (o centro do punho = meio da haste)
-            m = min(m, dist_eixo(q, centro, eixo) - raio_em(h) - DEDO_R)
-    return m
-
-
-def fecha_dedos(P, centro, eixo):
-    """rotacoes extras (graus, eixo local) ate as falanges encostarem no castical (folga 0 na superficie real).
-    Dedos: flexao = Z local negativo (e o sentido que as animacoes ja usam) em _01/_02/_03.
-    Polegar: busca 2D (base thumb_01 no eixo local que mais aproxima + flexao de _02/_03)."""
-    alvo = 0.0
+def pega_dedos():
+    """PEGA_DEDOS -> rotacao extra (quat) por osso, aplicada DEPOIS da rotacao local do idle (eixo do proprio osso)"""
+    eixos = {"X": (1, 0, 0), "Y": (0, 1, 0), "Z": (0, 0, 1)}
     rots, relato = {}, []
-    for d in DEDOS:
-        cadeia = ["%s_metacarpal_r" % d] + ["%s_0%d_r" % (d, i) for i in (1, 2, 3)]
-        juntas, pesos = cadeia[1:], (1.0, 1.0, 0.7)
-        md = lambda k: menor_dist(P, cadeia, {b: k * p for b, p in zip(juntas, pesos)}, d, centro, eixo)
-        base, k = md(0.0), 0.0
-        if base > alvo:
-            while k > -85 and md(k) > alvo:
-                k -= 0.5
-        else:
-            while k < 40 and md(k) < alvo:
-                k += 0.5
-        for b, p in zip(juntas, pesos):
-            rots[b] = qaxis((0, 0, 1), k * p)
-        relato.append("%s %+.0f graus (folga %.1f -> %.1f cm)" % (d, k, base, md(k)))
-    cadeia = ["thumb_01_r", "thumb_02_r", "thumb_03_r"]
-    base = menor_dist(P, cadeia, {}, "thumb", centro, eixo)
-    melhor = (abs(base - alvo), None, 0.0, 0.0, base)
-    for ax in ((1, 0, 0), (0, 1, 0), (0, 0, 1)):
-        for k1 in range(-60, 61, 5):
-            for k2 in range(-80, 21, 5):
-                def fk_t(k1=k1, k2=k2, ax=ax):
-                    pos, rot, pts, rr = (0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 1.0), [], []
-                    for b, extra in zip(cadeia, (qaxis(ax, k1), qaxis((0, 0, 1), k2), qaxis((0, 0, 1), 0.8 * k2))):
-                        lp, lq = P.loc[b]
-                        pos = add(pos, qrot(rot, lp))
-                        rot = qmul(rot, qmul(lq, extra))
-                        pts.append(pos)
-                        rr.append(rot)
-                    pts.append(add(pts[-1], qrot(rr[-1], (-PONTA["thumb"], 0, 0))))
-                    folga = lambda q: dist_eixo(q, centro, eixo) - raio_em(dot(sub(q, centro), eixo) + HASTE_MEIO) - DEDO_R
-                    return min(folga(add(a, mul(sub(b, a), s / 5.0))) for a, b in zip(pts, pts[1:]) for s in range(6))
-
-                m = fk_t()
-                if m >= alvo - 0.05 and abs(m - alvo) < melhor[0]:
-                    melhor = (abs(m - alvo), ax, k1, k2, m)
-    if melhor[1]:
-        rots["thumb_01_r"] = qaxis(melhor[1], melhor[2])
-        rots["thumb_02_r"] = qaxis((0, 0, 1), melhor[3])
-        rots["thumb_03_r"] = qaxis((0, 0, 1), 0.8 * melhor[3])
-    relato.append("thumb base %s %+.0f, flexao %+.0f (folga %.1f -> %.1f cm)" % (melhor[1], melhor[2], melhor[3], base, melhor[4]))
+    for b, passos in PEGA_DEDOS.items():
+        q = (0.0, 0.0, 0.0, 1.0)
+        for ax, g in passos:
+            q = qmul(q, qaxis(eixos.get(ax, ax), g))
+        rots[b] = q
+    for d in DEDOS + ("thumb",):
+        relato.append("%s: %s" % (d, ", ".join("%s %s" % (b[len(d) + 1:-2], " ".join("%s%+.0f" % (a if isinstance(a, str) else "eixo", g)
+                                                                              for a, g in PEGA_DEDOS[b]))
+                                              for b in PEGA_DEDOS if b.startswith(d))))
     return rots, relato
 
 
@@ -370,8 +302,14 @@ def escolhe(P, centro_h, eixo_h):
 def calcula():
     P = Pose()
     centro_h, eixo_h, _ = haste_na_mao(P)
-    dedos, rel = fecha_dedos(P, centro_h, eixo_h)
-    nota, alvo, giro, r = escolhe(P, centro_h, eixo_h)
+    dedos, rel = pega_dedos()
+    if ALVO_FIXO:
+        alvo, giro = ALVO_FIXO
+        r = solve(P, centro_h, eixo_h, alvo, giro)
+        if r["erro"] > 0.3:
+            raise Aborta("ALVO_FIXO %s fora do alcance do braco (%.1f cm); use ALVO_FIXO = None" % (alvo, r["erro"]))
+    else:
+        nota, alvo, giro, r = escolhe(P, centro_h, eixo_h)
     locais = {}
     cl = P.cs["clavicle_r"][1]
     locais["upperarm_r"] = qmul(qinv(cl), r["qu"])
@@ -402,14 +340,15 @@ def relatorio(P, centro_h, eixo_h, dedos, rel, alvo, giro, r):
 
 
 # ------------------------------------------------------------------ assets
-def cria_aditiva(P, locais):
-    """AS_LuxVela_Pega: todos os ossos parados no quadro 0 do idle, com a pega nos ossos alterados; aditiva local"""
+def cria_aditiva(P, locais, caminho=PEGA, aditiva=True):
+    """AS_LuxVela_Pega: todos os ossos parados no quadro 0 do idle, com a pega nos ossos alterados; aditiva local.
+    aditiva=False grava a pose inteira (usado pela previa do vela_mao_preview.py)."""
     idle = P.seq
     if not EAL.does_directory_exist(DIR):
         EAL.make_directory(DIR)
-    seq = EAL.load_asset(PEGA) if EAL.does_asset_exist(PEGA) else EAL.duplicate_asset(IDLE, PEGA)
+    seq = EAL.load_asset(caminho) if EAL.does_asset_exist(caminho) else EAL.duplicate_asset(IDLE, caminho)
     if not seq:
-        raise Aborta("nao consegui criar " + PEGA)
+        raise Aborta("nao consegui criar " + caminho)
     n = AL.get_num_keys(idle)
     ctl = seq.controller
     ctl.open_bracket(unreal.Text("LUX pega da vela"), True)
@@ -434,11 +373,12 @@ def cria_aditiva(P, locais):
             raise Aborta("trilhas nao gravadas: %s" % falhas)
     finally:
         ctl.close_bracket(True)
-    AL.set_additive_animation_type(seq, unreal.AdditiveAnimationType.AAT_LOCAL_SPACE_BASE)
-    AL.set_additive_base_pose_type(seq, unreal.AdditiveBasePoseType.ABPT_ANIM_FRAME)
-    seq.set_editor_property("ref_pose_seq", idle)
-    seq.set_editor_property("ref_frame_index", 0)
-    w("AS_LuxVela_Pega gravada (%d quadros, %d ossos com pega)" % (n, len(locais)))
+    if aditiva:
+        AL.set_additive_animation_type(seq, unreal.AdditiveAnimationType.AAT_LOCAL_SPACE_BASE)
+        AL.set_additive_base_pose_type(seq, unreal.AdditiveBasePoseType.ABPT_ANIM_FRAME)
+        seq.set_editor_property("ref_pose_seq", idle)
+        seq.set_editor_property("ref_frame_index", 0)
+    w("%s gravada (%d quadros, %d ossos com pega%s)" % (caminho.rsplit("/", 1)[-1], n, len(locais), "" if aditiva else ", pose inteira"))
     return seq
 
 
@@ -559,29 +499,13 @@ def verificar():
     return falhas
 
 
-def escalas(P):
-    """para cada escala da vela: quanto cada dedo entra no castical (folga negativa) depois de fechar"""
-    global ESCALA_VELA, HASTE_R, HASTE_MEIO
-    salvo = (ESCALA_VELA, HASTE_R, HASTE_MEIO)
-    try:
-        for s in (0.30, 0.34, 0.38, 0.42, 0.44, 0.46, 0.48, 0.50):
-            ESCALA_VELA, HASTE_R, HASTE_MEIO = s, 1.75 * s, 15.6 * s
-            c, e, _ = haste_na_mao(P)
-            _, rel = fecha_dedos(P, c, e)
-            w("escala %.2f (vela %.1f cm, haste livre %.1f cm): %s" % (s, 41.7 * s, 17.8 * s, "; ".join(rel)))
-    finally:
-        ESCALA_VELA, HASTE_R, HASTE_MEIO = salvo
-
-
 def main():
     os.makedirs(os.path.dirname(LOG), exist_ok=True)
     open(LOG, "w", encoding="utf-8").close()
-    modo = next((a for a in sys.argv[1:] if a in ("sondar", "escalas", "instalar", "verificar")), "sondar")
+    modo = next((a for a in sys.argv[1:] if a in ("sondar", "instalar", "verificar")), "sondar")
     w("modo:", modo)
     try:
-        if modo == "escalas":
-            escalas(Pose())
-        elif modo == "sondar":
+        if modo == "sondar":
             relatorio(*calcula()[:8])
         elif modo == "instalar":
             instalar()

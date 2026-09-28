@@ -16,11 +16,16 @@
 #    (Hidden in Game) e o SM_Flashlight fica longe, para o clique dela nao tocar. A vela segue os notifies das montagens,
 #    pelo NotifyGraph do ABP_Arms_Cowboy (Cast To BP_Player_Cowboy):
 #      puxar : ShowFlashlight (inicio) -> Vela_Puxar: vela visivel e APAGADA; timer Vela_Acender = duracao da montagem
-#              de equipar (0,8 s) + ESPERA_S (0,25 s; era 1,5 s) -> se ainda segura: chama acende -> luz acende
+#              de equipar (0,8 s) + ESPERA_S (0,05 s; era 1,5 -> 0,25) -> se ainda segura: chama acende -> luz acende
 #      guardar: Flashlight_Off (inicio) -> Vela_Guardar: cancela o timer; chama apaga -> luz apaga
 #               HideFlashlight (fim) -> Vela_Aplicar(false, false): a vela sai da mao
 #    Chama e luz sao ligadas pelo mesmo booleano (Vela_Aplicar), nunca uma sem a outra. O BeginPlay sincroniza com
 #    FlashlightOn?. O no IA_Lampiao -> ToggleVisibility (lampiao.py) sai do grafo.
+#  - 28/09 14h40 - PUXAR RAPIDO E FLUIDO (pedido: "quero fluidez, nao um delay"): volta o fluxo nativo com as montagens
+#    (a versao de 11h40 tirava a animacao). ShowFlashlight -> Vela_Puxar + Montage Set Play Rate(PUXAR_RATE): o braco
+#    sobe com a vela em 0,8/PUXAR_RATE s e o fogo acende ESPERA_S depois. Guardar segue a montagem nativa (0,8 s): o
+#    BP_Player vira FlashlightOn? = false aos 0,5 s fixos, entao acelerar a descida faria o braco voltar vazio.
+#    Blend Poses by bool (FlashlightOn?) do ABP: 0,4 -> BLEND_S (a troca de ramo nao atrasa o inicio da animacao).
 #   py "<projeto>/Tools/Player/vela.py" sondar|instalar|verificar|desfazer|mundo
 #   27/09 21h: vela menor (0.30), mao pega 3 cm acima da base, chama sempre em pe; "mundo" poe chama nas velas do mapa
 import json, math, os, shutil, sys, traceback
@@ -47,7 +52,7 @@ PLANO = "/Engine/BasicShapes/Plane"
 # com Z = eixo da haste. A Vela so desce HASTE_MEIO ao longo desse eixo (o punho fecha no meio da haste).
 # Antes: socket hand_r_Flashlight + pose manual (vela_pose.json, GRIP_CM), que deixava a vela 3,6-10,6 cm dos dedos.
 SOCKET = vp.SOCKET
-ESCALA_VELA = vp.ESCALA_VELA           # 42 cm -> 17,5 cm (28/09: 0.42, tamanho que cabe no punho; ver vela_pega.py)
+ESCALA_VELA = vp.ESCALA_VELA           # 42 cm -> 20,9 cm (28/09 v17: 0.50, a palma inteira cabe na haste; ver vela_pega.py)
 TOPO = 41.7 * ESCALA_VELA              # topo da malha (pivo na base)
 LUZ = {"cd": 0.5, "raio": 350.0, "temperatura": 2200.0, "fonte": 1.0}
 CHAMA = {"largura": 1.8, "altura": 4.2}  # cm
@@ -58,8 +63,10 @@ LUZ_ACIMA, CHAMA_ACIMA = 5.0, 2.5
 LOG = os.path.join(unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_saved_dir()), "LuxSnapshots", "vela_log.txt")
 # guardar/puxar
 ABP = "/Game/Characters/MixamoFP/Arms/ABP_Arms_Cowboy"
+ESPERA_S = 0.05                        # vela na mao (fim da animacao de puxar) -> fogo + luz (28/09: 1,5 -> 0,25 -> 0,05 s)
+PUXAR_RATE = 2.0                       # velocidade da montagem de puxar (0,8 s -> 0,4 s)
 MONT_EQUIP = "/Game/FPMovement/Demo/Character/Animations/Flashlight/Montages/AS_Flashlight_Eqiup_Montage"
-ESPERA_S = 0.25                        # vela na mao (fim da animacao de puxar) -> fogo + luz (28/09: era 1,5 s)
+BLEND_S = 0.1                          # troca de pose do braco (Blend Poses by bool do ABP): era 0,4 s
 FUNCS = ("Vela_Aplicar", "Vela_Acender", "Vela_Puxar", "Vela_Guardar")
 KSL, KML = "/Script/Engine.KismetSystemLibrary:", "/Script/Engine.KismetMathLibrary:"
 SV = "/Script/Engine.SceneComponent:SetVisibility"
@@ -351,6 +358,11 @@ def instalar():
     if not cdo.get_editor_property("FlashlightOn?"):
         cdo.set_editor_property("FlashlightOn?", True)
         salvar.add(BP)
+    # 28/09 14h40: o F nativo (com montagens) volta; a versao de 11h40 o travava com CanDoFlashlight = false
+    if not cdo.get_editor_property("CanDoFlashlight"):
+        cdo.set_editor_property("CanDoFlashlight", True)
+        w("CanDoFlashlight = true (F nativo com animacao de volta)")
+        salvar.add(BP)
     BEL.compile_blueprint(bp)
     # 5) grafo (so ADICIONA): BeginPlay -> prende a Vela no socket da mao e o Lampiao no topo da Vela
     ge = BGE.get_graph_editor_by_name(bp, "EventGraph")
@@ -385,6 +397,8 @@ def instalar():
         salvar.add(BP)
     if espera(bp):
         salvar.add(BP)
+    if tira_f_imediato(bp):
+        salvar.add(BP)
     if sincroniza_beginplay(bp):
         salvar.add(BP)
     if prende_chama(bp):
@@ -395,12 +409,17 @@ def instalar():
         raise Aborta("BP_Player_Cowboy com erros (nada salvo): %s" % e)
     if ganchos_abp():
         salvar.add(ABP)
+    if blend_abp():
+        salvar.add(ABP)
+    if puxar_rapido():
+        salvar.add(ABP)
     f = verificar()
     if f:
         raise Aborta("verificar FAIL (nada salvo): %s" % f)
     for p_ in sorted(salvar):
         w("salvo", p_, EAL.save_loaded_asset(EAL.load_asset(p_), False))
-    w("PIE: F guarda (apaga fogo e luz, a vela sai da mao) / F puxa (vela apagada; %.2f s depois do fim da animacao acende)" % ESPERA_S)
+    w("PIE: F guarda (fogo e luz apagam na hora, braco desce 0,8 s) / F puxa (braco sobe %.2f s; fogo e luz %.2f s depois)" % (
+        0.8 / PUXAR_RATE, ESPERA_S))
 
 
 def no_attach_vela(bp):
@@ -587,8 +606,8 @@ def funcoes(bp):
 
 
 def tempo_acender():
-    """duracao da montagem de puxar + ESPERA_S (o timer parte do ShowFlashlight, no inicio da montagem)"""
-    return round(unreal.AnimationLibrary.get_sequence_length(EAL.load_asset(MONT_EQUIP)) + ESPERA_S, 3)
+    """montagem de puxar (acelerada por PUXAR_RATE) + ESPERA_S; o timer parte do ShowFlashlight, no inicio da montagem"""
+    return round(unreal.AnimationLibrary.get_sequence_length(EAL.load_asset(MONT_EQUIP)) / PUXAR_RATE + ESPERA_S, 3)
 
 
 def no_timer(bp):
@@ -600,7 +619,7 @@ def no_timer(bp):
 
 
 def espera(bp):
-    """28/09: ESPERA_S mudou (1,5 -> 0,25 s): ajusta o UNICO timer da vela (Vela_Puxar) em vez de criar outro"""
+    """28/09: ESPERA_S mudou (1,5 -> 0,25 -> 0,05 s): ajusta o UNICO timer da vela (Vela_Puxar) em vez de criar outro"""
     ge, tm = no_timer(bp)
     alvo = tempo_acender()
     atual = float(tm.find_input_pin("Time").get_pin_value() or 0)
@@ -610,12 +629,102 @@ def espera(bp):
     for n in ge.list_all_nodes():
         if "LUX vela: ShowFlashlight" in str(n.get_node_title()):
             try:
-                n.set_editor_property("node_comment", "LUX vela: ShowFlashlight -> vela apagada na mao; Vela_Acender em %.2f s = montagem "
-                                      "de puxar (%.2f s) + %.2f s com a vela na mao" % (alvo, alvo - ESPERA_S, ESPERA_S))
+                n.set_editor_property("node_comment", "LUX vela: ShowFlashlight -> vela apagada na mao; Vela_Acender em "
+                                      "%.2f s = montagem de puxar a %.1fx + %.2f s" % (alvo, PUXAR_RATE, ESPERA_S))
             except Exception as ex:
                 w("  comentario do Vela_Puxar nao atualizado (%s)" % ex)
     w("timer do Vela_Puxar: %.3f s -> %.3f s (ESPERA_S %.2f s)" % (atual, alvo, ESPERA_S))
     return True
+
+
+def eventos_f(bp):
+    """eventos IA_Flashlight do EventGraph do Cowboy com o Started ligado"""
+    return [n for n in BGE.get_graph_editor_by_name(bp, "EventGraph").list_all_nodes()
+            if "IA_Flashlight" in str(n.get_node_title()) and ligados(n, "Started")]
+
+
+def tira_f_imediato(bp):
+    """28/09 14h40: remove o IA_Flashlight proprio do Cowboy (versao de 11h40, sem animacao) e o comentario dele"""
+    ge = BGE.get_graph_editor_by_name(bp, "EventGraph")
+    mud = False
+    ev = eventos_f(bp)
+    if ev:
+        nos, fila = [], list(ev)
+        while fila:
+            n = fila.pop()
+            if n in nos:
+                continue
+            nos.append(n)
+            for p in n.list_output_pins():
+                fila += [q.get_owning_node() for q in p.list_connected_pins()]
+            for p in n.list_input_pins():
+                if n not in ev and '"exec"' not in str(p.get_pin_type_as_json_schema()):
+                    fila += [q.get_owning_node() for q in p.list_connected_pins()]
+        ge.remove_nodes(nos)
+        w("F da versao 11h40 removido (%d nos): volta o fluxo nativo com animacao" % len(nos))
+        mud = True
+    velho = [n for n in ge.list_all_nodes() if "F sem espera" in str(n.get_node_title())]
+    if velho:
+        ge.remove_nodes(velho)
+        w("comentario do F da versao 11h40 removido")
+        mud = True
+    return mud
+
+
+def tem_rate(ge):
+    """nos Montage Set Play Rate (pelo pino NewPlayRate: o titulo muda com o idioma do editor)"""
+    return [n for n in ge.list_all_nodes() if ale.ok_pin(n.find_input_pin("NewPlayRate"))]
+
+
+def puxar_rapido():
+    """ABP: ShowFlashlight -> Vela_Puxar -> Montage Set Play Rate(todas, PUXAR_RATE)"""
+    abp = EAL.load_asset(ABP)
+    ge = BGE.get_graph_editor_by_name(abp, "NotifyGraph")
+    rates = tem_rate(ge)
+    if rates:
+        p = rates[0].find_input_pin("NewPlayRate")
+        if abs(float(p.get_pin_value() or 0) - PUXAR_RATE) < 1e-4:
+            return False
+        p.set_pin_value("%f" % PUXAR_RATE)
+    else:
+        puxa = [n for n in ge.list_all_nodes() if tem(n.get_node_title(), "Vela_Puxar")]
+        if len(puxa) != 1:
+            raise Aborta("ABP: chamada Vela_Puxar (%d)" % len(puxa))
+        g = ale.G(ge)
+        pos = puxa[0].get_node_pos()
+        r = g.call("/Script/Engine.AnimInstance:Montage_SetPlayRate", pos.x + 320, pos.y, NewPlayRate="%f" % PUXAR_RATE)
+        g.chain(puxa[0], r)
+    BEL.compile_blueprint(abp)
+    e = ale.erros_bp(abp)
+    if e:
+        raise Aborta("ABP_Arms_Cowboy com erros (nada salvo): %s" % e)
+    w("ABP: puxar a %.1fx (Montage Set Play Rate no ShowFlashlight)" % PUXAR_RATE)
+    return True
+
+
+def blend_abp():
+    """Blend Poses by bool (FlashlightOn?) do ABP_Arms_Cowboy: troca de pose do braco em BLEND_S (era 0,4 s)"""
+    abp = EAL.load_asset(ABP)
+    ge = BGE.get_graph_editor_by_name(abp, "AnimGraph")
+    bl = [n for n in ge.list_all_nodes() if "Blend Poses by bool" in str(n.get_node_title())]
+    if len(bl) != 1:
+        raise Aborta("ABP: Blend Poses by bool (%d)" % len(bl))
+    mud = False
+    for pino in ("BlendTime_0", "BlendTime_1"):
+        p = ale.ok_pin(bl[0].find_input_pin(pino))
+        if not p:
+            raise Aborta("ABP: pino %s nao encontrado" % pino)
+        if abs(float(p.get_pin_value() or 0) - BLEND_S) > 1e-4:
+            w("ABP: %s %s -> %.2f s" % (pino, p.get_pin_value(), BLEND_S))
+            if not p.set_pin_value("%f" % BLEND_S):
+                raise Aborta("ABP: %s nao aceitou %.2f" % (pino, BLEND_S))
+            mud = True
+    if mud:
+        BEL.compile_blueprint(abp)
+        e = ale.erros_bp(abp)
+        if e:
+            raise Aborta("ABP_Arms_Cowboy com erros (nada salvo): %s" % e)
+    return mud
 
 
 def sincroniza_beginplay(bp):
@@ -762,9 +871,11 @@ def verificar():
             falhas.append("a Vela nao e presa no socket %s (pega de espada)" % SOCKET)
     falhas += vp.verificar()
     cdo = unreal.get_default_object(bp.generated_class())
-    for k in ("FlashlightOn?", "HasFlashlight?", "CanDoFlashlight"):
+    for k in ("FlashlightOn?", "HasFlashlight?"):
         if not cdo.get_editor_property(k):
-            falhas.append("%s falso nos Class Defaults (comeca segurando a vela; F depende dele)" % k)
+            falhas.append("%s falso nos Class Defaults (comeca segurando a vela)" % k)
+    if not cdo.get_editor_property("CanDoFlashlight"):
+        falhas.append("CanDoFlashlight falso nos Class Defaults: o F nativo (com animacao) nao roda")
     # guardar/puxar
     imc = EAL.load_asset(lp.IMC)
     if "F" not in lp.teclas(imc, EAL.load_asset(lp.IA_FLASH)):
@@ -784,10 +895,20 @@ def verificar():
             _, tm = no_timer(bp)
             t = float(tm.find_input_pin("Time").get_pin_value() or 0)
             if abs(t - tempo_acender()) > 1e-3:
-                falhas.append("timer do Vela_Puxar em %.3f s (esperado %.3f = puxar + ESPERA_S)" % (t, tempo_acender()))
+                falhas.append("timer do Vela_Puxar em %.3f s (esperado %.3f = puxar acelerado + ESPERA_S)" % (t, tempo_acender()))
         except Aborta as ex:
             falhas.append(str(ex))
     ev = BGE.get_graph_editor_by_name(bp, "EventGraph").list_all_nodes()
+    if eventos_f(bp):
+        falhas.append("o Cowboy ainda tem IA_Flashlight proprio (F sem animacao da versao 11h40)")
+    if not tem_rate(BGE.get_graph_editor_by_name(EAL.load_asset(ABP), "NotifyGraph")):
+        falhas.append("ABP: puxar sem Montage Set Play Rate (animacao lenta)")
+    bl = [n for n in BGE.get_graph_editor_by_name(EAL.load_asset(ABP), "AnimGraph").list_all_nodes()
+          if "Blend Poses by bool" in str(n.get_node_title())]
+    for n in bl:
+        for pino in ("BlendTime_0", "BlendTime_1"):
+            if abs(float(n.find_input_pin(pino).get_pin_value() or 0) - BLEND_S) > 1e-4:
+                falhas.append("ABP: %s != %.2f s (troca de pose do braco lenta)" % (pino, BLEND_S))
     if [n for n in ev if "IA_Lampiao" in str(n.get_node_title()) and ligados(n, "Started")]:
         falhas.append("o F antigo (IA_Lampiao -> ToggleVisibility) ainda esta ligado")
     if not [n for n in ev if tem(n.get_node_title(), "Vela_Aplicar")]:
