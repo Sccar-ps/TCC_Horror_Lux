@@ -56,6 +56,33 @@ IMPACTO = ("/Game/FPMovement/Assets/Audio/Abilitys/Flashlight/SW_Flashlight_Hit"
 VERSAO = 1
 LOG = os.path.join(unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_saved_dir()), "LuxSnapshots", "vulto_corre_log.txt")
 
+# ------------------------------------------------------------------ Loop 1 v2 (30/09, pedido do Bruno)
+# O vulto do Loop 1 era a malha estatica SM_LuxVulto com MI_LuxVulto (unlit, emissivo Cor 0,004): no escuro a exposicao trava
+# em EV100 -7 com compensacao +1 e multiplica o emissivo por ~213 -> 0,85 = quase BRANCO. Agora o Loop 1 usa a MESMA figura
+# do loop 2 (BP_LuxVultoCorre: SKM_Manny_Simple, corpo translucido preto, aura) em instancias NOVAS ligadas aos eventos
+# EV_L1_* (os eventos continuam em add_loop_events.py). Preto verdadeiro nao e amplificado pela exposicao; para ser visto
+# precisa de FUNDO iluminado (capturas de 30/09: sem fundo a figura some no breu) -> LUX_L1_LuzFundo, luz quente fraca
+# dentro do escritorio, so no loop 1, que tambem pisca junto com as arandelas do corredor.
+# Modos proprios (NAO chamam ensure_luz_fundo/aplica_figura: nada do loop 2 e tocado):
+#   py ".../add_vulto_corre.py" instalar_l1 | verificar_l1 | desfazer_l1
+L1_MI = DIR + "/MI_LuxVultoCorpo_L1"
+L1_OPACIDADE = 0.5   # loop 2 usa 0,35 (correndo, com luz de fundo); parado a ~11 m, 0,35 e fumaca demais, 0,6 nitido demais
+ANIM_IDLE = "/Game/FreeAnimationLibrary/Animations/Idle/anim_Idle"
+ANIM_ANDAR_SRC = "/Game/FreeAnimationLibrary/Animations/Walk/anim_Walk_Fwd_Loop_L"
+ANIM_ANDAR = DIR + "/A_LuxVultoAndar"   # copia com ForceRootLock (o original anda na propria raiz e "respawna" a cada ciclo)
+L1_LUZ = "LUX_L1_LuzFundo"
+L1_LUZ_CFG = {"pos": (-3250.0, -1080.0, 110.0), "cd": 0.3, "raio": 450.0, "temperatura": 3200.0}
+# figura: label, evento, PontoA, PontoB, Duracao, yaw do ator (a malha olha para o +X do ator), animacao
+FIGURAS_L1 = [
+    # beat 1: parada no vao do escritorio, encarando quem vem do quarto; aparece no 1o apagao e some no 2o (add_loop_events)
+    {"label": "LUX_Vulto_L1_Porta", "evento": "EV_L1_VultoParado", "a": (-3250.0, -700.0, 0.0), "b": (-3250.0, -700.0, 0.0),
+     "duracao": 1.97, "yaw": 90.0, "anim": ANIM_IDLE, "tocando": False, "pos": 0.5, "taxa": 0.0},
+    # beat 3: sai do vao e vem na direcao da entrada da sala durante os passos; so e vista nas janelas acesas do piscar e
+    # some no escuro final (4o passo em 3,9 s; luz volta em 6,4 s)
+    {"label": "LUX_Vulto_L1_Passos", "evento": "EV_L1_PassosPesados", "a": (-3250.0, -720.0, 0.0), "b": (-3165.0, -655.0, 0.0),
+     "duracao": 4.1, "yaw": 37.4, "anim": ANIM_ANDAR, "tocando": True, "pos": 0.0, "taxa": 0.45},
+]
+
 
 def w(*a):
     line = " ".join(str(x) for x in a)
@@ -458,13 +485,198 @@ def desfazer():
       "false (sem vulto visivel, so os passos); para a silhueta parada voltar, bAparicao=True no plano do add_loop_events.py" % DIR)
 
 
+# ------------------------------------------------------------------ Loop 1 v2
+def ensure_l1_assets():
+    MEL = unreal.MaterialEditingLibrary
+    novos = []
+    if not EAL.does_asset_exist(L1_MI):
+        w("criando MI_LuxVultoCorpo_L1")
+        mi = unreal.AssetToolsHelpers.get_asset_tools().create_asset("MI_LuxVultoCorpo_L1", DIR, unreal.MaterialInstanceConstant,
+                                                                      unreal.MaterialInstanceConstantFactoryNew())
+        mi.set_editor_property("parent", EAL.load_asset(M_CORPO))
+        novos.append(mi)
+    mi = EAL.load_asset(L1_MI)
+    if abs(MEL.get_material_instance_scalar_parameter_value(mi, "Opacidade") - L1_OPACIDADE) > 1e-6:
+        MEL.set_material_instance_scalar_parameter_value(mi, "Opacidade", L1_OPACIDADE)
+        MEL.update_material_instance(mi)
+        if mi not in novos:
+            novos.append(mi)
+    if not EAL.does_asset_exist(ANIM_ANDAR):
+        w("duplicando anim -> A_LuxVultoAndar (ForceRootLock)")
+        EAL.duplicate_asset(ANIM_ANDAR_SRC, ANIM_ANDAR)
+    a = EAL.load_asset(ANIM_ANDAR)
+    if not a.get_editor_property("force_root_lock"):
+        a.set_editor_property("force_root_lock", True)
+        novos.append(a)
+    return novos
+
+
+def ensure_l1_luz():
+    """Luz quente fraca no escritorio, so no loop 1 (LOOP1_ON/LOOP2_OFF), piscando com as arandelas (tag do corredor).
+    Cor por temperatura, nao por light_color: o verificar dos eventos reprova luz de piscar avermelhada (fotossensibilidade)."""
+    eas = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+    lst = [x for x in ale.atores() if x.get_actor_label() == L1_LUZ]
+    mud = []
+    a = lst[0] if lst else None
+    if not a:
+        a = eas.spawn_actor_from_class(unreal.PointLight, unreal.Vector(*L1_LUZ_CFG["pos"]), unreal.Rotator())
+        a.set_actor_label(L1_LUZ)
+        a.set_folder_path(ale.FOLDER)
+        mud.append(L1_LUZ)
+    if (a.get_actor_location() - unreal.Vector(*L1_LUZ_CFG["pos"])).length() > 0.5:
+        a.set_actor_location(unreal.Vector(*L1_LUZ_CFG["pos"]), False, True)
+        mud.append("%s posicao" % L1_LUZ)
+    c = a.point_light_component
+    for k, v in (("mobility", unreal.ComponentMobility.MOVABLE), ("intensity_units", unreal.LightUnits.CANDELAS), ("intensity", L1_LUZ_CFG["cd"]),
+                 ("attenuation_radius", L1_LUZ_CFG["raio"]), ("use_temperature", True), ("temperature", L1_LUZ_CFG["temperatura"]),
+                 ("cast_shadows", True)):  # com sombra: sem ela a luz atravessa a parede e acende o piano da sala (~2,75 m)
+        atual = c.get_editor_property(k)
+        if (abs(atual - v) > 1e-4) if isinstance(v, float) else (atual != v):
+            c.set_editor_property(k, v)
+            mud.append("%s.%s" % (L1_LUZ, k))
+    quer = [ale.TAG, "LOOP1_ON", "LOOP2_OFF", ale.TAG_CORREDOR]
+    if sorted(str(t) for t in a.tags) != sorted(quer):
+        a.set_editor_property("tags", [unreal.Name(x) for x in quer])
+        mud.append("%s tags" % L1_LUZ)
+    return mud
+
+
+def ensure_l1_figuras(bp):
+    """Instancias NOVAS de BP_LuxVultoCorre (o grafo e o template nao mudam): Evento, PontoA/B, Duracao e, na Figura DESTA
+    instancia, animacao e material (sobrescrita por instancia, salva no mapa)."""
+    eas = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+    mi = EAL.load_asset(L1_MI)
+    mud = []
+    for cfg in FIGURAS_L1:
+        lst = [x for x in ale.atores() if x.get_actor_label() == cfg["label"]]
+        if len(lst) > 1:
+            raise Aborta("mais de um %s" % cfg["label"])
+        a = lst[0] if lst else None
+        if not a:
+            a = eas.spawn_actor_from_class(bp.generated_class(), unreal.Vector(*cfg["a"]), unreal.Rotator(0.0, 0.0, cfg["yaw"]))
+            a.set_actor_label(cfg["label"])
+            a.set_folder_path(ale.FOLDER)
+            a.set_editor_property("tags", [unreal.Name(ale.TAG)])
+            mud.append(cfg["label"])
+        ev = ale.por_label(cfg["evento"])
+        if not ev:
+            raise Aborta("%s nao encontrado (rode add_loop_events.py instalar)" % cfg["evento"])
+        for k, v in (("Evento", ev), ("PontoA", unreal.Vector(*cfg["a"])), ("PontoB", unreal.Vector(*cfg["b"])), ("Duracao", cfg["duracao"])):
+            atual = a.get_editor_property(k)
+            if (abs(atual - v) > 1e-6) if isinstance(v, float) else (atual != v):
+                a.set_editor_property(k, v)
+                mud.append("%s.%s" % (cfg["label"], k))
+        if (a.get_actor_location() - unreal.Vector(*cfg["a"])).length() > 0.5 or abs(a.get_actor_rotation().yaw - cfg["yaw"]) > 0.1:
+            a.set_actor_location_and_rotation(unreal.Vector(*cfg["a"]), unreal.Rotator(0.0, 0.0, cfg["yaw"]), False, True)
+            mud.append("%s transform" % cfg["label"])
+        fig = a.get_components_by_class(unreal.SkeletalMeshComponent)[0]
+        anim = EAL.load_asset(cfg["anim"])
+        dados = fig.get_editor_property("animation_data")
+        if (dados.get_editor_property("anim_to_play") != anim or dados.get_editor_property("saved_playing") != cfg["tocando"]
+                or abs(dados.get_editor_property("saved_play_rate") - cfg["taxa"]) > 1e-6
+                or abs(dados.get_editor_property("saved_position") - cfg["pos"]) > 1e-6):
+            fig.set_editor_property("animation_data", unreal.SingleAnimationPlayData(anim_to_play=anim, saved_looping=True,
+                                                                                       saved_playing=cfg["tocando"], saved_position=cfg["pos"],
+                                                                                       saved_play_rate=cfg["taxa"]))
+            mud.append("%s anim" % cfg["label"])
+        mats = list(fig.get_editor_property("override_materials"))
+        if not mats or any(m_ != mi for m_ in mats):
+            fig.set_editor_property("override_materials", [mi] * max(1, len(mats)))
+            mud.append("%s material" % cfg["label"])
+    return mud
+
+
+def verificar_l1():
+    f = []
+    if not EAL.does_asset_exist(L1_MI) or not EAL.does_asset_exist(ANIM_ANDAR):
+        return ["assets do Loop 1 ausentes (MI_LuxVultoCorpo_L1 / A_LuxVultoAndar)"]
+    mi = EAL.load_asset(L1_MI)
+    if mi.get_editor_property("parent") != EAL.load_asset(M_CORPO):
+        f.append("MI_LuxVultoCorpo_L1 nao deriva de M_LuxVultoCorpo (corpo preto translucido)")
+    if not EAL.load_asset(ANIM_ANDAR).get_editor_property("force_root_lock"):
+        f.append("A_LuxVultoAndar sem ForceRootLock")
+    luz = [x for x in ale.atores() if x.get_actor_label() == L1_LUZ]
+    if len(luz) != 1:
+        f.append("esperava 1 %s (%d)" % (L1_LUZ, len(luz)))
+    else:
+        if sorted(str(t) for t in luz[0].tags) != sorted([ale.TAG, "LOOP1_ON", "LOOP2_OFF", ale.TAG_CORREDOR]):
+            f.append("%s sem as tags LOOP1_ON/LOOP2_OFF/%s" % (L1_LUZ, ale.TAG_CORREDOR))
+        if "MOVABLE" not in str(luz[0].point_light_component.get_editor_property("mobility")):
+            f.append("%s nao e Movable" % L1_LUZ)
+    for cfg in FIGURAS_L1:
+        lst = [x for x in ale.atores() if x.get_actor_label() == cfg["label"]]
+        if len(lst) != 1:
+            f.append("esperava 1 %s (%d)" % (cfg["label"], len(lst)))
+            continue
+        a = lst[0]
+        fig = a.get_components_by_class(unreal.SkeletalMeshComponent)[0]
+        ev = a.get_editor_property("Evento")
+        if not ev or ev.get_actor_label() != cfg["evento"]:
+            f.append("%s: Evento nao aponta para %s" % (cfg["label"], cfg["evento"]))
+        elif ev.get_editor_property("bAparicao"):
+            f.append("%s ainda com bAparicao (a silhueta estatica branca voltaria)" % cfg["evento"])
+        if not fig.get_editor_property("hidden_in_game"):
+            f.append("%s: Figura visivel no jogo por padrao" % cfg["label"])
+        if fig.get_collision_profile_name() != "NoCollision" or fig.get_editor_property("cast_shadow"):
+            f.append("%s: Figura com colisao ou sombra" % cfg["label"])
+        if not fig.get_editor_property("overlay_material"):
+            f.append("%s: Figura sem aura" % cfg["label"])
+        if any(m_ != mi for m_ in fig.get_editor_property("override_materials")):
+            f.append("%s: material do corpo != MI_LuxVultoCorpo_L1" % cfg["label"])
+        if fig.get_editor_property("animation_data").get_editor_property("anim_to_play") != EAL.load_asset(cfg["anim"]):
+            f.append("%s: animacao != %s" % (cfg["label"], cfg["anim"]))
+        if abs(a.get_editor_property("Duracao") - cfg["duracao"]) > 1e-6:
+            f.append("%s: Duracao %.2f != %.2f" % (cfg["label"], a.get_editor_property("Duracao"), cfg["duracao"]))
+    lf = [x for x in ale.atores() if x.get_actor_label() == LUZ_FUNDO]
+    if lf and sorted(str(t) for t in lf[0].tags) != sorted([ale.TAG, "LOOP2_ON", "LOOP3_OFF"]):
+        f.append("%s (loop 2) teve as tags alteradas" % LUZ_FUNDO)
+    w("verificar_l1:", ("FAIL %s" % f) if f else "PASS")
+    return f
+
+
+def instalar_l1():
+    if unreal.get_editor_subsystem(unreal.LevelEditorSubsystem).is_in_play_in_editor():
+        raise Aborta("feche o PIE")
+    if ale.sujos():
+        raise Aborta("ha pacotes nao salvos antes de comecar: %s" % ale.sujos())
+    bp, _ = ensure_bp()
+    novos = ensure_l1_assets()
+    mud = ensure_l1_luz() + ensure_l1_figuras(bp)
+    w("mudou (loop 1):", mud or "nada")
+    f = verificar_l1()
+    if f:
+        raise Aborta("verificar_l1 FAIL (nada salvo): %s" % f)
+    for x in novos:
+        w("salvo", x.get_path_name(), EAL.save_loaded_asset(x, False))
+    U = unreal.EditorLoadingAndSavingUtils
+    mapa = [p for p in U.get_dirty_map_packages() if p.get_name() == "/Game/Masion/Mapa_B"]
+    if mapa:
+        w("salvo Mapa_B", U.save_packages(mapa, True))
+    extra = [p for p in ale.sujos() if p != "/Game/Masion/Mapa_B"]
+    if extra:
+        w("aviso: pacotes ainda sujos:", extra)
+
+
+def desfazer_l1():
+    """Tira so o que e do Loop 1 v2 (figuras e luz). Os assets (MI, anim) ficam; o loop 2 nao e tocado."""
+    eas = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+    alvo = [c["label"] for c in FIGURAS_L1] + [L1_LUZ]
+    for a in [a for a in ale.atores() if a.get_actor_label() in alvo]:
+        eas.destroy_actor(a)
+    U = unreal.EditorLoadingAndSavingUtils
+    U.save_packages([p for p in U.get_dirty_map_packages() if p.get_name() == "/Game/Masion/Mapa_B"], True)
+    w("Loop 1 v2 removido do mapa (%s)" % ", ".join(alvo))
+
+
 def main():
     os.makedirs(os.path.dirname(LOG), exist_ok=True)
     open(LOG, "w", encoding="utf-8").close()
-    modo = next((x for x in sys.argv[1:] if x in ("instalar", "verificar", "desfazer")), "verificar")
+    modos = ("instalar", "verificar", "desfazer", "instalar_l1", "verificar_l1", "desfazer_l1")
+    modo = next((x for x in sys.argv[1:] if x in modos), "verificar")
     w("modo:", modo)
     try:
-        {"instalar": instalar, "verificar": verificar, "desfazer": desfazer}[modo]()
+        {"instalar": instalar, "verificar": verificar, "desfazer": desfazer, "instalar_l1": instalar_l1,
+         "verificar_l1": verificar_l1, "desfazer_l1": desfazer_l1}[modo]()
     except Aborta as ex:
         w("ABORTADO:", ex, "| sujos:", ale.sujos())
     except Exception:

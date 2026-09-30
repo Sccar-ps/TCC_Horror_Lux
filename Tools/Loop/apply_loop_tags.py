@@ -3,7 +3,7 @@
 # Idempotente: apaga os duplicados antigos, tira as tags LOOPn_* dos alvos e aplica tudo de novo. Nao salva.
 #   py "<projeto>/Tools/Loop/apply_loop_tags.py"
 #
-# Loop 1: normal, sem tags.
+# Loop 1: sem tags (30/09: os sinais do loop 1 sao eventos EV_L1_* de add_loop_events.py; o loop 0, 1a passagem, e o normal).
 # Loop 2: aparece um quadro novo no corredor (a "foto da Lia"). PLACEHOLDER: a tela usa o material da pintura
 #         que ja existe no corredor, porque nao ha imagem da Lia no projeto.
 # Loop 3: as luzes das arandelas 3 e 5 do corredor apagam; aparece uma vela acesa no chao do corredor.

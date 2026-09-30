@@ -7,6 +7,9 @@
 #   Assets: SA_LuxEvento, CS_LuxSusto, MI_LuxSombra, BP_LuxLogSave (pasta /Game/Masion/LUX/Loop/Eventos).
 # So LE PedirTroca, BP_LuxLoopManager, BP_LuxCeu, BP_LuxAudioLoop e o dono do GatilhoFechar. Nunca apaga grafo,
 # nunca recarrega pacote. Funcoes de BP no lugar de eventos com parametro (ke * Funcao args).
+# 30/09 (pedido do Bruno): pacote do LOOP 1 = primeiro sinal evidente (pacote_loop1: vulto no vao do escritorio que some numa
+#   piscada -> macaneta -> passos pesados vindo do vao com as luzes apagando a cada passo). As figuras e a luz de fundo do loop 1
+#   sao do add_vulto_corre.py instalar_l1 (rode DEPOIS deste). O loop 0 (1a passagem, LoopAtual 0) continua sem nada. Ids 41-43.
 import importlib, json, math, os, sys, traceback, unreal
 
 INSTALAR_SUSTOS = True        # etapa 4 (27/09): rodar instalar de novo so cria o que falta
@@ -49,7 +52,9 @@ SONS = {
     "PORTAL": "/Game/Backrooms_Ambience/Cues/2_FULL_Backrooms_Portal__by_juanjo_sound__Cue",
     "MEMORIES": "/Game/Backrooms_Ambience/Cues/5_FULL_Backrooms_Memories__by_juanjo_sound__Cue",
     "MIRAGE": "/Game/Backrooms_Ambience/Cues/7_FULL_Backrooms_Mirage__by_juanjo_sound__Cue",
-    "BROKEN": "/Game/Backrooms_Ambience/Cues/8_FULL_Broken_Backrooms_Portal__by_juanjo_sound__Cue"}
+    "BROKEN": "/Game/Backrooms_Ambience/Cues/8_FULL_Broken_Backrooms_Portal__by_juanjo_sound__Cue",
+    "TRY": "/Game/FPMovement/Assets/Audio/Abilitys/Door/SW_TryOpen_Door",  # 30/09: macaneta do loop 1
+    "FLICKER": "/Game/FPMovement/Assets/Audio/Abilitys/Flashlight/SW_Flashlight_Flicker"}  # 30/09 v2: chiado da luz no vulto do loop 1
 
 
 def w(*a):
@@ -421,9 +426,13 @@ FAIXAS = {
 # luzes por tag de piscar (cada rota pisca as luzes do seu lado)
 TAG_LESTE = "LUX_EV_PiscarLeste"
 TAG_ESC = "LUX_EV_PiscarEsc"
+TAG_CORREDOR = "LUX_EV_PiscarCorredor"   # 30/09: as duas arandelas do corredor (as mesmas que apagam de vez no loop 3 pela tag LOOP3_OFF)
 LUZES_POR_TAG = {TAG_LUZES: ["LUX_Luz_Sala_Candelabro", "LUX_Luz_Sala_Candelabro2", "LUX_Luz_Sala_Candelabro3", "LUX_Luz_Sala_Abajur"],
                  TAG_LESTE: ["LUX_Luz_Sala_Abajur", "LUX_Luz_Sala_VelaJantar"],
-                 TAG_ESC: ["LUX_Luz_Escritorio_Vela"]}
+                 TAG_ESC: ["LUX_Luz_Escritorio_Vela"],
+                 TAG_CORREDOR: ["LUX_Luz_Corredor_Arandela3", "LUX_Luz_Corredor_Arandela5"]}
+# 30/09: unicos eventos permitidos no loop 1; qualquer outro no loop 1 reprova o verificar (o loop 0 nao tem evento)
+LOOP1_EVENTOS = ("EV_L1_VultoParado", "EV_L1_Macaneta", "EV_L1_PassosPesados")
 CADEIRA_JANTAR = "Sala_Jantar_Cabeceira2"   # sem luz baked no Mapa_B (sem BuiltData, todas as luzes Movable): vira Movable direto
 CADEIRA_JANTAR_ALVO = (-2250.0, -1750.0)    # gira para ficar de frente para quem vai para a porta pelo lado leste
 # rotas andaveis (grade 25 cm + capsula r30), Chegada -> porta do loop
@@ -1655,7 +1664,47 @@ def plano(g):
                Som="SCD", Pitch=0.55, Volume=1.31, SomCamada="HL", PitchCamada=0.35, RelCamada=0.75, EscalaTremor=1.5, Atenuacao="SA_SUSTO",
                bSoQuandoDeCostas=True, CosCostas=-0.2, JanelaS=25.0, DistMaxJogador=1100.0)]
         sustos += sustos_de_rota(g)
-    return marcas + barulhos + sustos
+    return marcas + barulhos + sustos + (pacote_loop1(g) if INSTALAR_SUSTOS else [])
+
+
+def pacote_loop1(g):
+    """30/09 (pedido do Bruno): o loop 1 (o que exige chave) e o primeiro sinal EVIDENTE; o loop 0 (1a passagem) fica sem nada.
+    Ordem no corredor: vulto no vao do escritorio -> macaneta atras -> passos pesados vindo do vao, com as luzes apagando a cada passo.
+    O vulto vai primeiro porque e o mais restrito (olhar): simulado offline em 5 rotas x 2 perfis x atraso de saida 0/1,5/2,5 s =
+    0 falhas; com a macaneta antes dele a aparicao perdia a janela em 5 dos 30 cenarios.
+    v2 (30/09, "vulto ta branco, nada parecido com o do loop 2; quero algo que faca duvidar se algo esteve ali"): a silhueta
+    estatica (MI_LuxVulto, emissivo 0,004 x exposicao ~213 = quase branco) sai; a figura e a do loop 2 (BP_LuxVultoCorre),
+    em instancias proprias criadas por add_vulto_corre.py instalar_l1 (LUX_Vulto_L1_Porta / LUX_Vulto_L1_Passos), contra a luz
+    quente LUX_L1_LuzFundo (so no loop 1, tag TAG_CORREDOR: pisca junto com as arandelas).
+    - Vulto: PadraoPiscar [0,25 apagado, 1,6 aceso, 0,3 apagado] e acende no fim. A figura aparece no 1o apagao (t=0), e vista
+      no vao contra a luz por 1,6 s, e some em ~1,97 s DENTRO do 2o apagao (1,85-2,15): quando a luz volta, o vao esta vazio.
+      Chiado eletrico nos dois apagoes (a lampada "falhou"?).
+    - Passos: sincronia passo x piscar (os dois nascem no Executar; IntervaloRepS = soma de cada par do PadraoPiscar, 0,5 + 0,8 =
+      1,3 s); o som sai do vao do escritorio e anda com a figura (DeslocPorRep = (PontoB - PontoA) x 1,3 / 4,1); a figura so e
+      vista nas janelas acesas, cada vez mais perto, e some no escuro final (4o passo em 3,9 s, figura some em 4,1 s, luz volta
+      em 6,4 s). PadraoPiscar total 3,9 s (regra do verificar: <= 4 s)."""
+    gl, gx = g["gatilho"]
+    mw = g["meia_largura"]
+    d7 = g["BP_BaseDoor7"].get_actor_location()
+    yl = gl.y - gx.y - 25.0            # logo depois do gatilho: a porta do quarto ja fechou
+    yv = yl - 270.0                    # caixa do vulto: yl .. yv
+    yb = yv - 10.0 - 690.0             # caixa da macaneta: yv-10 .. yb (ate y ~ -400); nao sobrepoe a do vulto nem a S1
+    return [
+        # vulto no vao do escritorio (alvo do olhar = peito da figura LUX_Vulto_L1_Porta); aparicao estatica DESLIGADA
+        ev("EV_L1_VultoParado", 41, 1, [1], ((-3275.0, (yl + yv) / 2, 110.0), (mw, (yl - yv) / 2, 110.0)), (-3250.0, -700.0, 120.0),
+           aparicao=(-3250.0, -700.0), bAparicao=False, bSoQuandoOlhando=True, CosOlhar=0.90, bExigirLinhaVisao=True, JanelaS=30.0,
+           TagLuzes=TAG_CORREDOR, PadraoPiscar=[0.25, 1.6, 0.3], IntensidadeApagada=0.04, bApagarNoFim=False, bSomNoFimDoPiscar=False,
+           Som="FLICKER", Repeticoes=2, IntervaloRepS=1.85, Pitch=0.85, Volume=1.0, DuracaoMaxS=1.2, FadeS=0.3, Atenuacao="SA_SUSTO"),
+        # macaneta do quarto: 2 giros lentos e graves, so com o jogador de costas para a porta
+        ev("EV_L1_Macaneta", 42, 0, [1], ((-3275.0, ((yv - 10.0) + yb) / 2, 110.0), (mw, ((yv - 10.0) - yb) / 2, 110.0)),
+           (d7.x, d7.y + 40.0, 105.0), Som="TRY", Repeticoes=2, IntervaloRepS=1.6, Pitch=0.6, Volume=2.0, DuracaoMaxS=1.5, FadeS=0.6,
+           Atenuacao="SA_SUSTO", bSoQuandoDeCostas=True, CosCostas=0.0, JanelaS=25.0, DistMaxJogador=1300.0),
+        # passos pesados e lentos saindo do vao do escritorio atras do jogador (de costas): 4 passos a cada 1,3 s, andando com a
+        # figura LUX_Vulto_L1_Passos de (-3250,-720) a (-3165,-655) em 4,1 s; luzes do corredor + LUX_L1_LuzFundo em sincronia
+        ev("EV_L1_PassosPesados", 43, 1, [1], fx("S1"), (-3250.0, -720.0, 60.0), Som="VULTO_PASSO", Repeticoes=4, IntervaloRepS=1.3,
+           Pitch=0.7, Volume=1.5, DeslocPorRep=(27.0, 20.6, 0.0), DuracaoMaxS=0.8, FadeS=0.5, Atenuacao="SA_SUSTO", EscalaTremor=0.5,
+           TagLuzes=TAG_CORREDOR, PadraoPiscar=[0.5, 0.8, 0.5, 0.8, 0.5, 0.8], IntensidadeApagada=0.04, bApagarNoFim=True,
+           bSomNoFimDoPiscar=False, RestaurarAposS=2.5, bSoQuandoDeCostas=True, CosCostas=-0.2, JanelaS=25.0, DistMaxJogador=1100.0)]
 
 
 def sustos_de_rota(g):
@@ -2077,8 +2126,12 @@ def verificar():
         db = -24.0 * max(0.0, e["DistMaxJogador"] - inner) / fall
         if db < -12.0 - 1e-6:
             falhas.append("%s: ganho em D=%.0f = %.1f dB (< -12)" % (e["label"], e["DistMaxJogador"], db))
-        if e["Categoria"] != 2 and 1 in e["Loops"]:
-            falhas.append("%s no loop 1" % e["label"])
+        if e["Categoria"] != 2 and 1 in e["Loops"] and e["label"] not in LOOP1_EVENTOS:
+            falhas.append("%s no loop 1 (fora do pacote do loop 1)" % e["label"])
+        if e["bAparicao"]:
+            # 30/09: a silhueta estatica usa MI_LuxVulto (unlit, emissivo 0,004); no escuro a exposicao multiplica por ~213 e ela
+            # fica quase BRANCA. Vulto = BP_LuxVultoCorre (corpo preto translucido) ligado ao evento (add_vulto_corre.py)
+            falhas.append("%s usa a silhueta estatica emissiva (fica branca no escuro)" % e["label"])
         if e["Categoria"] != 2 and any(L >= 3 for L in e["Loops"]) and (e["c"].y - e["x"].y) > (gl.y + gx.y):
             falhas.append("%s (loop 3-5) a montante do GatilhoFechar" % e["label"])
         if e["Categoria"] != 2:
@@ -2121,8 +2174,7 @@ def verificar():
             chave = "%s|%s" % (nome, rota)
             sim[chave] = simular(evs, g, v, varre, rota)
             for L, res in sim[chave].items():
-                if L == 1:
-                    continue
+                # 30/09: o loop 1 agora tem o pacote EV_L1_* e entra na checagem como os demais (antes: "if L == 1: continue")
                 # 22:30: sustos independentes. Todo susto em cuja caixa o jogador entrou tem de disparar; nenhum pode parar
                 # por "cota". Quem nao disparou por estar dentro do bloqueio da distorcao e ter saido da sala (caixa com
                 # bExigirDentro) vira aviso: e a regra da distorcao, nao um susto cancelando outro.
