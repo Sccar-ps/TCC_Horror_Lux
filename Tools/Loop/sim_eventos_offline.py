@@ -12,6 +12,7 @@
 # Conferido em 30/09: para o pacote do loop 1 este script e o verificar do editor deram os mesmos instantes (vulto 3-4 s, macaneta 6-7 s,
 #   passos 10,25 s). Ordem macaneta -> vulto reprovou (5 de 30 cenarios); vulto -> macaneta passou (0 de 30).
 # v2 (30/09): vulto no vao do escritorio e passos saindo do vao: 0 de 30 com CosCostas -0,2, 0 e 0,2 (passos a 2,2-3,4 m do som).
+# v3 (30/09, polimento): passos comecam em L1_PASSOS[0] = (-3250, -740) (add_loop_events.py); o vulto continua em L1_VAO[0].
 import math
 
 ALTURA_OLHO = 166.0
@@ -153,7 +154,7 @@ def pacote_loop1():
            bAparicao=False),
         ev("EV_L1_Macaneta", 0, [1], box(yv - 10.0, yb), V(-3275.0, 910.0, 105.0), JanelaS=25.0, DistMaxJogador=1300.0,
            bSoQuandoDeCostas=True, CosCostas=0.0),
-        ev("EV_L1_PassosPesados", 1, [1], (V(-3000.0, -550.0), V(60.0, 210.0)), V(-3250.0, -720.0, 60.0), JanelaS=25.0,
+        ev("EV_L1_PassosPesados", 1, [1], (V(-3000.0, -550.0), V(60.0, 210.0)), V(-3250.0, -740.0, 60.0), JanelaS=25.0,
            DistMaxJogador=1100.0, bSoQuandoDeCostas=True, CosCostas=-0.2)]
 
 
