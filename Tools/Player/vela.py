@@ -54,7 +54,11 @@ PLANO = "/Engine/BasicShapes/Plane"
 SOCKET = vp.SOCKET
 ESCALA_VELA = vp.ESCALA_VELA           # 42 cm -> 20,9 cm (28/09 v17: 0.50, a palma inteira cabe na haste; ver vela_pega.py)
 TOPO = 41.7 * ESCALA_VELA              # topo da malha (pivo na base)
-LUZ = {"cd": 0.5, "raio": 350.0, "temperatura": 2200.0, "fonte": 1.0}
+# 01/10/2026: o Lampiao do BP_Player_Cowboy tem 0,18 cd (ajuste manual no editor, medido em 01/10; este script dizia 0,5 e o git sempre teve 0,5/0,6).
+# O "instalar" regrava esta tabela: com 0,5 ele desfaria o ajuste e a vela ficaria 2,8x mais forte. Mantido em 0,18 = estado real do projeto.
+# Raio 350 cm: com a exposicao corrigida (vela_legibilidade.py) 500 cm clareia mais o fundo das salas escuras (P3 25 -> 39 % visivel) mas tira
+# parte do escuro (corredor: 53 -> 27 % dos pixels < 0,03); decisao de gosto, nao aplicada. Ver nota Vela.
+LUZ = {"cd": 0.18, "raio": 350.0, "temperatura": 2200.0, "fonte": 1.0}
 CHAMA = {"largura": 1.8, "altura": 4.2}  # cm
 # 27/09: luz 5 cm acima do pavio (antes 2,5) para nao estourar a cera e a mao
 # 27/09 22h: a chama saiu da luz: base no pavio (ChamaPivo, rotacao absoluta), centro do cartao 2,5 cm acima dele.

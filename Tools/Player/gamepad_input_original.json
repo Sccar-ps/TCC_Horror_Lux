@@ -1,0 +1,200 @@
+{
+ "data": "2026-10-01",
+ "mapeamentos": [
+  {
+   "acao": "IA_Inspect",
+   "tecla": "I",
+   "mods": [],
+   "trigs": []
+  },
+  {
+   "acao": "IA_Interact",
+   "tecla": "E",
+   "mods": [],
+   "trigs": []
+  },
+  {
+   "acao": "IA_Move",
+   "tecla": "W",
+   "mods": [
+    [
+     "InputModifierSwizzleAxis",
+     {
+      "order": "<InputAxisSwizzle.YXZ: 0>"
+     }
+    ]
+   ],
+   "trigs": []
+  },
+  {
+   "acao": "IA_Move",
+   "tecla": "S",
+   "mods": [
+    [
+     "InputModifierSwizzleAxis",
+     {
+      "order": "<InputAxisSwizzle.YXZ: 0>"
+     }
+    ],
+    [
+     "InputModifierNegate",
+     {
+      "x": true,
+      "y": true,
+      "z": true
+     }
+    ]
+   ],
+   "trigs": []
+  },
+  {
+   "acao": "IA_Move",
+   "tecla": "A",
+   "mods": [
+    [
+     "InputModifierNegate",
+     {
+      "x": true,
+      "y": true,
+      "z": true
+     }
+    ]
+   ],
+   "trigs": []
+  },
+  {
+   "acao": "IA_Move",
+   "tecla": "D",
+   "mods": [],
+   "trigs": []
+  },
+  {
+   "acao": "IA_Move",
+   "tecla": "Up",
+   "mods": [
+    [
+     "InputModifierSwizzleAxis",
+     {
+      "order": "<InputAxisSwizzle.YXZ: 0>"
+     }
+    ]
+   ],
+   "trigs": []
+  },
+  {
+   "acao": "IA_Move",
+   "tecla": "Down",
+   "mods": [
+    [
+     "InputModifierSwizzleAxis",
+     {
+      "order": "<InputAxisSwizzle.YXZ: 0>"
+     }
+    ],
+    [
+     "InputModifierNegate",
+     {
+      "x": true,
+      "y": true,
+      "z": true
+     }
+    ]
+   ],
+   "trigs": []
+  },
+  {
+   "acao": "IA_Move",
+   "tecla": "Right",
+   "mods": [],
+   "trigs": []
+  },
+  {
+   "acao": "IA_Move",
+   "tecla": "Left",
+   "mods": [
+    [
+     "InputModifierNegate",
+     {
+      "x": true,
+      "y": true,
+      "z": true
+     }
+    ]
+   ],
+   "trigs": []
+  },
+  {
+   "acao": "IA_Move",
+   "tecla": "Gamepad_Left2D",
+   "mods": [
+    [
+     "InputModifierDeadZone",
+     {
+      "lower_threshold": 0.2,
+      "type": "<DeadZoneType.RADIAL: 1>",
+      "upper_threshold": 1.0
+     }
+    ],
+    [
+     "InputModifierScalar",
+     {
+      "scalar": [
+       50.0,
+       50.0,
+       1.0
+      ]
+     }
+    ]
+   ],
+   "trigs": []
+  },
+  {
+   "acao": "IA_Look",
+   "tecla": "Mouse2D",
+   "mods": [
+    [
+     "InputModifierNegate",
+     {
+      "x": false,
+      "y": true,
+      "z": false
+     }
+    ]
+   ],
+   "trigs": []
+  },
+  {
+   "acao": "IA_Look",
+   "tecla": "Gamepad_Right2D",
+   "mods": [
+    [
+     "InputModifierDeadZone",
+     {
+      "lower_threshold": 0.2,
+      "type": "<DeadZoneType.RADIAL: 1>",
+      "upper_threshold": 1.0
+     }
+    ]
+   ],
+   "trigs": []
+  },
+  {
+   "acao": "IA_Crouch",
+   "tecla": "C",
+   "mods": [],
+   "trigs": []
+  },
+  {
+   "acao": "IA_Zoom",
+   "tecla": "RightMouseButton",
+   "mods": [],
+   "trigs": []
+  },
+  {
+   "acao": "IA_Flashlight",
+   "tecla": "F",
+   "mods": [],
+   "trigs": []
+  }
+ ]
+}

@@ -3,6 +3,8 @@
 #   py ".../Tools/Lighting/apply_ppv_global.py"                -> valores recomendados (ver PRESET abaixo)
 #   py ".../Tools/Lighting/apply_ppv_global.py" <min> <max> <bias>   -> so troca a faixa de exposicao (teste)
 # Idempotente: procura o volume pela tag LUX_PPV_GLOBAL e so atualiza. Desfazer: Ctrl+Z ou apagar o ator PPV_Global.
+# DEPOIS deste script rode vela_legibilidade.py instalar (01/10/2026): o mesmo PPV_Global ganha a mascara de metragem da exposicao
+# (a mao e a vela deixam de puxar a exposicao) e o motion blur 0. Este script nao conhece essas propriedades e nao as desfaz.
 import os, sys, unreal
 
 TAG = "LUX_PPV_GLOBAL"
