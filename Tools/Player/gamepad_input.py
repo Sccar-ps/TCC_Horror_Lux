@@ -12,6 +12,9 @@
 #     gamepad ganha ScaleByDeltaTime x 60, que mantem EXATAMENTE a velocidade de hoje a 60 FPS e a torna independente do FPS
 #     (sem isso o giro era 2,5 graus por QUADRO: 150 graus/s a 60 FPS, 75 a 30 e 360 a 144). O x50 do IA_Move fica: o analogico
 #     satura na velocidade de caminhada igual as teclas (D09: a velocidade do jogo e desenho, nao deve variar por dispositivo).
+#     O Look do gamepad ganha tambem Negate no Y: o projeto liga bEnableLegacyInputScales e a escala de pitch do PlayerController e
+#     -2,5 (BaseGame.ini), entao AddControllerPitchInput(+) olha para BAIXO. O mouse ja tinha Negate no Y por isso; o stick do pack
+#     nao tinha, e empurrar o stick direito para cima olhava para baixo. Medido no PIE (gamepad_pie_eixos.py).
 #     NAO mapeia IA_Sprint nem IA_Jump (D09, decisao do Gabriel de 27/09: sem corrida e sem pulo). Mapear so no gamepad religaria
 #     a corrida so para quem joga de controle.
 #     Teclado e mouse ficam IDENTICOS: o verificar compara com o snapshot (Tools/Player/gamepad_input_original.json).
@@ -19,7 +22,17 @@
 #       IA_Pausa (Menu/Start/Options, Esc, P), IA_UI_Confirmar (A/Cross, Enter, Espaco), IA_UI_Voltar (B/Circle, Backspace),
 #       IA_UI_Anterior (LB/L1, D-Pad esq., stick esq., seta esq.), IA_UI_Proximo (RB/R1, D-Pad dir., stick dir., seta dir.),
 #       IA_UI_Alternar (Y/Triangle, Tab: troca o estilo dos icones Auto/Xbox/PlayStation no pause).
-#  3) IMC_LuxEntrada com esses mapeamentos (o componente BP_LuxEntrada, etapa 3, o registra no BeginPlay com prioridade 1).
+#     IA_UI_Confirmar e IA_UI_Voltar agem ao SOLTAR (gatilho Released, evento Triggered), as outras ao apertar (Pressed). Motivo: A e B tambem sao
+#     Interagir e Agachar, e o motor corta as acoes de jogo durante a pausa. Fechar a pausa ao APERTAR deixava o botao ainda apertado quando o jogo voltava:
+#     a acao de jogo (gatilhos Pressed+Released: Ongoing enquanto segura) ia de None a Ongoing no 1o quadro e o Started disparava sozinho (agachar fantasma,
+#     interacao fantasma). Ao soltar, a acao de jogo ja fez o aperto e a soltura DENTRO da pausa (os gatilhos continuam a ser avaliados) e o estado volta limpo.
+#     (Medido no PIE: gamepad_pie_sobreposicao.py. O RequestRebuildControlMappings "ignore as teclas apertadas" nao ajuda: o motor so ignora teclas apertadas
+#     em mapeamentos NOVOS; os que ja existiam voltam com o estado dos gatilhos, EnhancedInputSubsystemInterface.cpp.)
+#  3) IA_Zoom (existente) passa a trigger_when_paused = true. Motivo: o zoom e de SEGURAR (Started liga, Completed desliga). Com a pausa, a acao perdia o gatilho
+#     (Ongoing -> None = evento Canceled, que o BP_Player nao trata): quem pausava com o zoom apertado e soltava na pausa voltava com o zoom PRESO ligado.
+#     Com a flag, o zoom segue o botao mesmo pausado (soltar na pausa dispara o Completed). Efeito colateral: apertar o zoom na pausa toca o som de zoom
+#     (a camera so anima quando o jogo volta). Valor original no pack: false (medido em 01/10); desfazer o restaura.
+#  4) IMC_LuxEntrada com esses mapeamentos (o componente BP_LuxEntrada, etapa 3, o registra no BeginPlay com prioridade 1).
 #     Os botoes A/B/Y repetem os do jogo DE PROPOSITO: as acoes de UI so agem com o pause ou uma janela aberta (guarda no
 #     componente) e nao consomem a tecla, entao o gameplay nao muda. O verificar lista toda tecla repetida entre os contextos.
 #   py "<projeto>/Tools/Player/gamepad_input.py" sondar|instalar|verificar|desfazer
@@ -42,6 +55,8 @@ GAMEPAD = (("IA_Interact", "Gamepad_FaceButton_Bottom"), ("IA_Crouch", "Gamepad_
 PROIBIDAS = ("IA_Sprint", "IA_Jump")
 ZONA = {"lower": 0.25, "upper": 0.95}   # radial; antes 0,2 / 1,0 (padrao do modificador). Microsoft recomenda 0,24 (esq.) e 0,265 (dir.)
 LOOK_ESCALA = 60.0                      # ScaleByDeltaTime x 60: 1 quadro a 60 FPS = o valor de hoje
+# gatilho de cada acao nova (padrao Pressed). Confirmar/Voltar agem ao soltar (ver o cabecalho)
+SOLTAR = ("IA_UI_Confirmar", "IA_UI_Voltar")
 # acoes novas: nome -> (descricao, teclas do IMC_LuxEntrada)
 NOVAS = (
     ("IA_Pausa", "Pausar e continuar (Menu/Start/Options)", ("Gamepad_Special_Right", "Escape", "P")),
@@ -134,8 +149,13 @@ def mod_de(m, cls):
     return next((x for x in m.get_editor_property("modifiers") if isinstance(x, cls)), None)
 
 
+def negate_y_certo(neg):
+    """Negate so no Y: o do mouse ja e assim; o do stick faltava (ver o cabecalho)"""
+    return neg is not None and not neg.get_editor_property("x") and neg.get_editor_property("y") and not neg.get_editor_property("z")
+
+
 def ajusta_sticks(imc):
-    """Left2D: zona morta 0,25 / 0,95 radial (o x50 fica). Right2D: zona morta + ScaleByDeltaTime + Scalar(60,60,1)."""
+    """Left2D: zona morta 0,25 / 0,95 radial (o x50 fica). Right2D: zona morta + Negate Y + ScaleByDeltaTime + Scalar(60,60,1)."""
     maps = mapeamentos(imc)
     mudou = False
     for i, m in enumerate(maps):
@@ -153,19 +173,38 @@ def ajusta_sticks(imc):
             dz.set_editor_property("type", unreal.DeadZoneType.RADIAL)
             mudou = True
         if a == "IA_Look":
-            if mod_de(m, unreal.InputModifierScaleByDeltaTime) is None or mod_de(m, unreal.InputModifierScalar) is None:
-                # ordem: zona morta -> x delta tempo -> x60
-                novos = [dz]
-                novos.append(unreal.new_object(unreal.InputModifierScaleByDeltaTime, outer=imc))
-                sc = unreal.new_object(unreal.InputModifierScalar, outer=imc)
+            # ordem: zona morta -> Negate Y -> x delta tempo -> x60 (reaproveita o que ja existe; so cria o que falta)
+            neg = mod_de(m, unreal.InputModifierNegate)
+            dt = mod_de(m, unreal.InputModifierScaleByDeltaTime)
+            sc = mod_de(m, unreal.InputModifierScalar)
+            ordem = [x.get_class().get_name() for x in m.get_editor_property("modifiers")]
+            if ordem != ["InputModifierDeadZone", "InputModifierNegate", "InputModifierScaleByDeltaTime", "InputModifierScalar"] or not negate_y_certo(neg):
+                if neg is None:
+                    neg = unreal.new_object(unreal.InputModifierNegate, outer=imc)
+                neg.set_editor_property("x", False)
+                neg.set_editor_property("y", True)
+                neg.set_editor_property("z", False)
+                if dt is None:
+                    dt = unreal.new_object(unreal.InputModifierScaleByDeltaTime, outer=imc)
+                if sc is None:
+                    sc = unreal.new_object(unreal.InputModifierScalar, outer=imc)
                 sc.set_editor_property("scalar", unreal.Vector(LOOK_ESCALA, LOOK_ESCALA, 1.0))
-                novos.append(sc)
-                m.set_editor_property("modifiers", novos)
+                m.set_editor_property("modifiers", [dz, neg, dt, sc])
                 maps[i] = m
                 mudou = True
     if mudou:
         grava_mapeamentos(imc, maps)
     return mudou
+
+
+def ajusta_zoom(salvar):
+    """IA_Zoom (existente): trigger_when_paused = true (ver o cabecalho, item 3)"""
+    caminho = IA_DIR + "/IA_Zoom"
+    ia = carrega(caminho)
+    if not ia.get_editor_property("trigger_when_paused"):
+        ia.set_editor_property("trigger_when_paused", True)
+        w("IA_Zoom: trigger_when_paused true")
+        salvar.add(caminho)
 
 
 # ------------------------------------------------------------------ assets novos
@@ -181,15 +220,17 @@ def cria_ia(nome, descricao, objeto_de_edicao):
     ia.set_editor_property("trigger_when_paused", True)
     ia.set_editor_property("consume_input", False)
     ia.set_editor_property("action_description", unreal.Text(descricao))
-    if not [t for t in ia.get_editor_property("triggers") if isinstance(t, unreal.InputTriggerPressed)]:
-        ia.set_editor_property("triggers", [unreal.new_object(unreal.InputTriggerPressed, outer=ia)])
+    cls = unreal.InputTriggerReleased if nome in SOLTAR else unreal.InputTriggerPressed
+    atuais = list(ia.get_editor_property("triggers"))
+    if len(atuais) != 1 or type(atuais[0]) is not cls:
+        ia.set_editor_property("triggers", [unreal.new_object(cls, outer=ia)])
     objeto_de_edicao.add(caminho)
     return ia, novo
 
 
 def instalar():
-    if unreal.get_editor_subsystem(unreal.LevelEditorSubsystem).is_in_play_in_editor():
-        raise Aborta("feche o PIE")
+    if not os.environ.get("LUX_CMDLET") and unreal.get_editor_subsystem(unreal.LevelEditorSubsystem).is_in_play_in_editor():
+        raise Aborta("feche o PIE")   # (no commandlet nao ha editor grafico: LevelEditorSubsystem derruba o processo)
     salvar = set()
     imc = carrega(IMC)
     maps0 = mapeamentos(imc)
@@ -208,6 +249,7 @@ def instalar():
         if ajusta_sticks(imc):
             w("IMC_Default: zona morta %.2f/%.2f radial nos dois sticks; Look do gamepad com ScaleByDeltaTime x%d" % (ZONA["lower"], ZONA["upper"], LOOK_ESCALA))
             salvar.add(IMC)
+    ajusta_zoom(salvar)
     # 2) acoes novas + IMC_LuxEntrada
     if not EAL.does_directory_exist(DIR):
         EAL.make_directory(DIR)
@@ -284,6 +326,11 @@ def verificar(silencioso=False):
             sc = mod_de(m, unreal.InputModifierScalar)
             if mod_de(m, unreal.InputModifierScaleByDeltaTime) is None or sc is None or abs(sc.get_editor_property("scalar").x - LOOK_ESCALA) > 1e-6:
                 falhas.append("Look do gamepad sem ScaleByDeltaTime x%d" % LOOK_ESCALA)
+            if not negate_y_certo(mod_de(m, unreal.InputModifierNegate)):
+                falhas.append("Look do gamepad sem Negate so no Y (stick vertical invertido em relacao ao mouse)")
+    # o zoom (segurar/soltar) tem de seguir o botao tambem com o jogo pausado
+    if not carrega(IA_DIR + "/IA_Zoom").get_editor_property("trigger_when_paused"):
+        falhas.append("IA_Zoom sem trigger_when_paused (zoom preso depois de pausar com o botao apertado)")
     # acoes novas e IMC_LuxEntrada
     if not EAL.does_asset_exist(IMC_LUX):
         falhas.append("IMC_LuxEntrada nao existe")
@@ -297,6 +344,10 @@ def verificar(silencioso=False):
                 continue
             if not ia.get_editor_property("trigger_when_paused") or ia.get_editor_property("consume_input"):
                 falhas.append("%s: trigger_when_paused/consume_input errados" % nome)
+            esperado = unreal.InputTriggerReleased if nome in SOLTAR else unreal.InputTriggerPressed
+            gat = list(ia.get_editor_property("triggers"))
+            if len(gat) != 1 or type(gat[0]) is not esperado:
+                falhas.append("%s: gatilho %s (esperado %s)" % (nome, [type(x).__name__ for x in gat], esperado.__name__))
             tem = sorted(nome_tecla(m) for m in lm if nome_acao(m) == nome)
             if tem != sorted(teclas):
                 falhas.append("%s no IMC_LuxEntrada: %s (esperado %s)" % (nome, tem, sorted(teclas)))
@@ -379,6 +430,10 @@ def desfazer():
                     maps[i] = m
         grava_mapeamentos(imc, maps)
     w("salvo IMC_Default", EAL.save_loaded_asset(imc, False))
+    zoom = carrega(IA_DIR + "/IA_Zoom")
+    if zoom.get_editor_property("trigger_when_paused"):
+        zoom.set_editor_property("trigger_when_paused", False)   # o valor original do pack
+        w("salvo IA_Zoom (trigger_when_paused false)", EAL.save_loaded_asset(zoom, False))
     w("(snapshot original em", SNAP, ")")
 
 
