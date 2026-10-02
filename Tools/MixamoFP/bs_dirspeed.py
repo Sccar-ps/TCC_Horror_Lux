@@ -19,10 +19,12 @@ def w(m):
     out.append(str(m))
 
 
-def sample(name, x, y, rate):
+def sample(name, x, y, rate, ymax=None):
     s = unreal.BlendSample()
     s.set_editor_property("animation", EAL.load_asset(ANIM + name))
-    s.set_editor_property("sample_value", unreal.Vector(x, y, 0.0))
+    # 02/10: o maximo do eixo Speed e gravado com round(); a posicao tem de ficar dentro dele (Run_F em 400,032 com eixo ate 400 = "amostra fora dos limites",
+    # P14: o motor a invalida e a tira da triangulacao). Ver Tools/MixamoFP/corrige_carga_corpo.py.
+    s.set_editor_property("sample_value", unreal.Vector(x, min(y, ymax) if ymax is not None else y, 0.0))
     s.set_editor_property("rate_scale", round(rate, 3))
     return s
 
@@ -44,9 +46,10 @@ try:
              ("A_CB_Run_L", -90.0, RS, RS / NAT["A_CB_Run_L"]), ("A_CB_Run_R", 90.0, RS, RS / NAT["A_CB_Run_R"])]
     bs = EAL.load_asset(BS)
     bs.modify()
-    bs.set_editor_property("sample_data", [sample(*r) for r in rows])
+    vmax = float(round(max(RF, RS, RB)))
+    bs.set_editor_property("sample_data", [sample(*r, ymax=vmax) for r in rows])
     params = list(bs.get_editor_property("blend_parameters"))
-    params[1].set_editor_property("max", float(round(max(RF, RS, RB))))
+    params[1].set_editor_property("max", vmax)
     bs.set_editor_property("blend_parameters", params)
     EAL.save_loaded_asset(bs, False)
     w("BS_CB_Stand: %s %.0f..%.0f | %s" % (params[1].get_editor_property("display_name"), params[1].get_editor_property("min"),

@@ -76,6 +76,9 @@ NOVAS = (
     ("IA_UI_Anterior", "Anterior nos menus (LB/L1, D-Pad, stick esquerdo)", ("Gamepad_LeftShoulder", "Gamepad_DPad_Left", "Gamepad_LeftStick_Left", "Left")),
     ("IA_UI_Proximo", "Proximo nos menus (RB/R1, D-Pad, stick esquerdo)", ("Gamepad_RightShoulder", "Gamepad_DPad_Right", "Gamepad_LeftStick_Right", "Right")),
     ("IA_UI_Alternar", "Alternar o estilo dos icones no pause (Y/Triangle)", ("Gamepad_FaceButton_Top", "Tab")),
+    # 02/10 (menu de pausa): subir/descer no menu (BP_LuxEntrada.Mover). Setas, D-Pad e stick esquerdo; so agem com a pausa aberta e nao consomem a tecla
+    ("IA_UI_Cima", "Cima nos menus (D-Pad, stick esquerdo, seta)", ("Gamepad_DPad_Up", "Gamepad_LeftStick_Up", "Up")),
+    ("IA_UI_Baixo", "Baixo nos menus (D-Pad, stick esquerdo, seta)", ("Gamepad_DPad_Down", "Gamepad_LeftStick_Down", "Down")),
 )
 
 

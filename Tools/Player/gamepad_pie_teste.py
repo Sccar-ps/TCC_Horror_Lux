@@ -59,12 +59,20 @@ def prompts():
     return out
 
 
+def texto_filho(wd):
+    """texto do rotulo de uma peca do menu de pausa (WB_LuxPausa*: HorizontalBox > [faixa, corpo > TextBlock])"""
+    return str(wd.get_editor_property("HorizontalBox").get_child_at(1).get_content().get_editor_property("text"))
+
+
 def texto_pausa():
+    """menu de pausa (desde 02/10): 'TITULO' + quebra de linha + linha de dica. O titulo e a peca WB_LuxPausaTitulo com texto; a dica e o ItemDica do componente"""
     ws = [x for x in unreal.WidgetLibrary.get_all_widgets_of_class(S["world"], WBP_CLS, False) if x.is_in_viewport()]   # o objeto sobrevive ao RemoveFromParent ate o GC
     if not ws:
         return None
     try:
-        return str(ws[0].get_editor_property("HorizontalBox").get_child_at(0).get_content().get_editor_property("text"))
+        tit = next((texto_filho(x) for x in cget("Todos") if "Titulo" in x.get_class().get_name() and texto_filho(x)), "")
+        dc = cget("ItemDica")
+        return tit + "\n" + (texto_filho(dc) if dc else "")
     except Exception as ex:
         return "ERRO " + str(ex)[:80]
 
@@ -220,20 +228,20 @@ def teste():
     chk("IA_Pausa pausa o jogo", GS.is_game_paused(world), GS.is_game_paused(world))
     chk("bPausado verdadeiro", cget("bPausado") is True, cget("bPausado"))
     tp = texto_pausa()
-    chk("tela de pausa no viewport: PAUSADO / [Enter] ou [ESC] Continuar", tp is not None and tp.startswith("PAUSADO") and "[Enter] ou [ESC] Continuar" in tp, repr(tp))
+    chk("tela de pausa no viewport: PAUSADO / [Enter] Selecionar / [ESC] Continuar", tp is not None and tp.startswith("PAUSADO") and "[Enter] Selecionar" in tp and "[ESC] Continuar" in tp, repr(tp))
     d = yield from shot("pausa_teclado")
     w("quadro:", d)
-    # 9) pausa com controle (Xbox): texto com glifos e linha de icones
+    # 9) pausa com controle (Xbox): dica com glifos (a troca do estilo dos icones fica na tela Configuracoes: gamepad_pie_pausa_menu.py)
     tipo(forcado="Xbox")
     yield from espera(0.5)
     tp = texto_pausa()
-    chk("pausa com controle Xbox: [A] ou [Menu] + linha de icones", tp is not None and "[A] ou [Menu] Continuar" in tp and "[Y]" in tp and "cones: Auto (Xbox)" in tp, repr(tp))
+    chk("pausa com controle Xbox: [A] Selecionar / [Menu] Continuar", tp is not None and "[A] Selecionar" in tp and "[Menu] Continuar" in tp, repr(tp))
     d = yield from shot("pausa_xbox")
     w("quadro:", d)
     tipo(forcado="PlayStation")
     yield from espera(0.5)
     tp = texto_pausa()
-    chk("pausa com controle PlayStation: [Cross] ou [Options] + [Triangle]", tp is not None and "[Cross] ou [Options] Continuar" in tp and "[Triangle]" in tp, repr(tp))
+    chk("pausa com controle PlayStation: [Cross] Selecionar / [Options] Continuar", tp is not None and "[Cross] Selecionar" in tp and "[Options] Continuar" in tp, repr(tp))
     d = yield from shot("pausa_playstation")
     w("quadro:", d)
     tipo(forcado="Xbox")
