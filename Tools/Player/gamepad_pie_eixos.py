@@ -4,7 +4,9 @@
 # Como: inject_input_vector_for_action(IA, vetor_bruto, modificadores_do_mapeamento, []) faz o que o hardware faria (valor bruto da tecla ou do stick
 # passando pelos MESMOS modificadores do IMC), menos o dispositivo. Compara o stick com o mouse (Mouse2D) e com as teclas (W/A/S/D).
 # Por que existe: com bEnableLegacyInputScales ligado, a escala de pitch do PlayerController e -2,5 (BaseGame.ini): AddControllerPitchInput(+) olha para BAIXO.
-# O mouse tem Negate no Y por isso; o stick do pack nao tinha e empurrar o stick direito para cima olhava para baixo (corrigido em gamepad_input.py).
+# O mouse tem Negate no Y por isso (MouseY e positivo para cima). O stick NAO tem Negate: o FSceneViewport inverte o Gamepad_RightY antes do PlayerInput, entao
+# num aparelho real o stick para cima chega como -Y e olha para cima. A injecao entra DEPOIS dessa inversao, por isso o teste injeta o stick com o sinal
+# real (cru(), abaixo). De 01/10 a 02/10 o teste injetava +Y como "cima", o stick ganhou um Negate e no aparelho olhava para baixo (corrigido em 02/10).
 # Desde 02/10 o Look do stick tem curva 1,5 e o vertical a 0,7 do horizontal (gamepad_input.py: LOOK_CURVA, LOOK_VERTICAL). As constantes abaixo sao a
 # ESPECIFICACAO que o teste confere; se mudar la, mude aqui.
 import json, math, os, sys, time, traceback, unreal
@@ -61,6 +63,12 @@ def mods(acao, tecla, sem=()):
 
 def norm(a):
     return (a + 180.0) % 360.0 - 180.0
+
+
+def cru(x, y_para_cima):
+    """valor bruto do stick direito como chega ao Enhanced Input num aparelho real: o FSceneViewport::OnAnalogValueChanged inverte o Gamepad_RightY
+    (Key == EKeys::Gamepad_RightY ? -valor : valor) e a injecao entra DEPOIS dele. Stick para cima = -Y bruto; para a direita = +X. (O mouse nao e invertido.)"""
+    return unreal.Vector(x, -y_para_cima, 0.0)
 
 
 def previsto(incl, maximo):
@@ -131,32 +139,44 @@ def teste():
     w("cadeia do stick direito:", [x.get_class().get_name() for x in mods(IA_LOOK, "Gamepad_Right2D")])
     w("cadeia do stick esquerdo:", [x.get_class().get_name() for x in mods(IA_MOVE, "Gamepad_Left2D")])
 
-    # ---------------- LOOK: direcao (o valor bruto do eixo e +Y para CIMA e +X para a DIREITA, tanto no mouse quanto no stick) ----------------
+    # ---------------- LOOK: direcao (mouse: +Y bruto = cima, +X = direita; stick: cru() = -Y bruto para cima, +X para a direita) ----------------
     # valores pequenos para a rotacao nao dar a volta a quadros altos (so o sinal importa aqui); a velocidade vem abaixo
-    up = unreal.Vector(0.0, 1.0, 0.0)
-    rt = unreal.Vector(1.0, 0.0, 0.0)
+    rt = cru(1.0, 0.0)
     p, y, _, _, _ = yield from gira(unreal.Vector(0.0, 0.2, 0.0), mods(IA_LOOK, "Mouse2D"), 0.3)   # mouse: contagens por quadro, nao -1..1
     chk("Look: MOUSE para cima olha para cima (pitch %+.2f)" % p, p > 0.05, round(p, 3))
     p, y, _, _, _ = yield from gira(unreal.Vector(0.2, 0.0, 0.0), mods(IA_LOOK, "Mouse2D"), 0.3)
     chk("Look: MOUSE para a direita gira a direita (yaw %+.2f)" % y, y > 0.05, round(y, 3))
+    # guarda do motor: o sinal do stick real depende de o FSceneViewport inverter o Gamepad_RightY (so confere se o fonte do motor esta instalado)
+    src = os.path.join(unreal.Paths.convert_relative_path_to_full(unreal.Paths.engine_dir()), "Source", "Runtime", "Engine", "Private", "Slate", "SceneViewport.cpp")
+    if os.path.exists(src):
+        txt = open(src, encoding="utf-8", errors="replace").read()
+        chk("Motor: o FSceneViewport inverte o Gamepad_RightY antes do PlayerInput (o teste injeta o stick com esse sinal)", "Key == EKeys::Gamepad_RightY ? -InAnalogInputEvent.GetAnalogValue()" in txt)
+    else:
+        w("   (fonte do motor ausente: a inversao do Gamepad_RightY nao foi conferida)")
     # stick a 0,5 (com a curva 1,5, 0,3 quase nao gira); so o sinal importa aqui
     stick = mods(IA_LOOK, "Gamepad_Right2D")
-    p, y, _, _, _ = yield from gira(unreal.Vector(0.0, 0.5, 0.0), mods(IA_LOOK, "Gamepad_Right2D", sem=("InputModifierNegate",)), 0.3)
-    w("   (referencia: o stick SEM o Negate, como o pack o entregava, deu pitch %+.2f)" % p)
-    S["pitch_sem_negate"] = p
-    p, y, _, _, _ = yield from gira(unreal.Vector(0.0, 0.5, 0.0), stick, 0.3)
-    chk("Look: STICK para cima olha para cima (pitch %+.2f; sem o Negate dava %+.2f)" % (p, S["pitch_sem_negate"]), p > 0.05 and S["pitch_sem_negate"] < -0.05, (round(p, 3), round(S["pitch_sem_negate"], 3)))
+    chk("Look: o stick NAO tem Negate (o mouse tem; o FSceneViewport ja inverte o Y do stick)", not [x for x in stick if x.get_class().get_name() == "InputModifierNegate"], [x.get_class().get_name() for x in stick])
+    # referencia: o Negate que o stick teve de 01/10 a 02/10 inverteria o vertical do aparelho
+    neg = unreal.new_object(unreal.InputModifierNegate)   # outer padrao = pacote transitorio (nada vai para o disco)
+    neg.set_editor_property("x", False)
+    neg.set_editor_property("y", True)
+    neg.set_editor_property("z", False)
+    p, y, _, _, _ = yield from gira(cru(0.0, 0.5), [stick[0], neg] + stick[1:], 0.3)
+    w("   (referencia: o stick COM o Negate de 01/10, empurrado para cima, deu pitch %+.2f)" % p)
+    S["pitch_com_negate"] = p
+    p, y, _, _, _ = yield from gira(cru(0.0, 0.5), stick, 0.3)
+    chk("Look: STICK para cima olha para cima (pitch %+.2f; com o Negate antigo dava %+.2f)" % (p, S["pitch_com_negate"]), p > 0.05 and S["pitch_com_negate"] < -0.05, (round(p, 3), round(S["pitch_com_negate"], 3)))
     chk("Look: STICK so para cima nao gira para os lados (yaw %+.3f)" % y, abs(y) < 0.05, round(y, 4))
-    p, y, _, _, _ = yield from gira(unreal.Vector(0.0, -0.5, 0.0), stick, 0.3)
+    p, y, _, _, _ = yield from gira(cru(0.0, -0.5), stick, 0.3)
     chk("Look: STICK para baixo olha para baixo (pitch %+.2f)" % p, p < -0.05, round(p, 3))
-    p, y, _, _, _ = yield from gira(unreal.Vector(0.5, 0.0, 0.0), stick, 0.3)
+    p, y, _, _, _ = yield from gira(cru(0.5, 0.0), stick, 0.3)
     chk("Look: STICK para a direita gira a direita (yaw %+.2f)" % y, y > 0.05, round(y, 3))
     chk("Look: STICK so para a direita nao mexe o vertical (pitch %+.3f)" % p, abs(p) < 0.05, round(p, 4))
-    p, y, _, _, _ = yield from gira(unreal.Vector(-0.5, 0.0, 0.0), stick, 0.3)
+    p, y, _, _, _ = yield from gira(cru(-0.5, 0.0), stick, 0.3)
     chk("Look: STICK para a esquerda gira a esquerda (yaw %+.2f)" % y, y < -0.05, round(y, 3))
     # ---------------- LOOK: velocidade a fundo em graus por segundo de TEMPO DE JOGO, a varios FPS (ScaleByDeltaTime = independe do FPS) ----------------
     # pitch por 0,5 s: a 105 graus/s nao chega ao limite de 89,9 graus do camera manager
-    up = unreal.Vector(0.0, 1.0, 0.0)
+    up = cru(0.0, 1.0)
     taxas = {}
     for fps in (30, 60, 120):
         limita_fps(fps)
@@ -188,16 +208,16 @@ def teste():
     chk("Look: horizontal segue a curva 1,5 em 7 inclinacoes de 0,30 a 0,95 (fora da tolerancia: %s)" % (fora or "nenhuma"), not fora, [(i, round(m, 1)) for i, m, _ in curva])
     sobe = all(curva[k + 1][1] > curva[k][1] for k in range(len(curva) - 1))
     chk("Look: quanto mais inclinado, mais rapido, sem degrau (monotona)", sobe, [round(m, 1) for _, m, _ in curva])
-    p, y, dt, n, nf = yield from gira(unreal.Vector(0.0, 0.5, 0.0), stick, 0.6)
+    p, y, dt, n, nf = yield from gira(cru(0.0, 0.5), stick, 0.6)
     tpm, ppm = (p / dt if dt > 0 else 0.0), previsto(0.5, PITCH_MAX)
     chk("Look: vertical a meia inclinacao = %.0f graus/s (medido %.0f)" % (ppm, tpm), abs(tpm - ppm) < max(0.2 * ppm, 1.5), round(tpm, 1))
     # diagonal: a zona morta e radial e a curva e por eixo; os dois eixos giram para o lado certo e o vertical continua a 0,7
-    p, y, dt, n, nf = yield from gira(unreal.Vector(0.6, 0.6, 0.0), stick, 0.5)
+    p, y, dt, n, nf = yield from gira(cru(0.6, 0.6), stick, 0.5)
     tdy, tdp = (y / dt, p / dt) if dt > 0 else (0.0, 0.0)
     t = (math.hypot(0.6, 0.6) - ZONA[0]) / (ZONA[1] - ZONA[0]) * math.sqrt(0.5)
     chk("Look: diagonal cima-direita gira para a direita e para cima (yaw %.0f, pitch %.0f graus/s; previsto %.0f e %.0f)" % (tdy, tdp, YAW_MAX * t ** CURVA, PITCH_MAX * t ** CURVA),
         abs(tdy - YAW_MAX * t ** CURVA) < 0.2 * YAW_MAX * t ** CURVA and abs(tdp - PITCH_MAX * t ** CURVA) < 0.2 * PITCH_MAX * t ** CURVA, (round(tdy, 1), round(tdp, 1)))
-    p, y, dt, n, nf = yield from gira(unreal.Vector(0.2, 0.1, 0.0), stick, 0.9)
+    p, y, dt, n, nf = yield from gira(cru(0.2, 0.1), stick, 0.9)
     chk("Look: dentro da zona morta (0,22 de inclinacao) a camera nao se move (pitch %.2f, yaw %.2f)" % (p, y), abs(p) < 0.5 and abs(y) < 0.5, (round(p, 3), round(y, 3)))
     # ---------------- LOOK: o MOUSE nao muda (o vertical igual ao horizontal, por contagem) ----------------
     p_m, _, _, n_p, _ = yield from gira(unreal.Vector(0.0, 0.2, 0.0), mods(IA_LOOK, "Mouse2D"), 0.4)

@@ -110,20 +110,18 @@ def shot(nome):
 
 
 def modificadores_look():
-    """Right2D do IMC_Default: zona morta + Negate so no Y + curva 1,5 + ScaleByDeltaTime + escala (60, 42) (vertical a 0,7 do horizontal, desde 02/10).
-    A direcao e a velocidade REAIS (mouse x stick, 30/60/120 FPS, curva, zona morta) sao medidas por injecao com esta mesma cadeia em gamepad_pie_eixos.py
-    (a conta direta com InputActionValue nao e possivel no Python do 5.8)."""
+    """Right2D do IMC_Default: zona morta + curva 1,5 + ScaleByDeltaTime + escala (60, 42) (vertical a 0,7 do horizontal, desde 02/10), SEM Negate (o
+    FSceneViewport ja inverte o Gamepad_RightY; o mouse e que tem Negate no Y). A direcao e a velocidade REAIS (mouse x stick, 30/60/120 FPS, curva, zona
+    morta) sao medidas por injecao com esta mesma cadeia em gamepad_pie_eixos.py (a conta direta com InputActionValue nao e possivel no Python do 5.8)."""
     mapa = None
     for m in IMC_DEFAULT.get_editor_property("default_key_mappings").get_editor_property("mappings"):
         if m.get_editor_property("action") == IA["IA_Look"] and str(m.get_editor_property("key").get_editor_property("key_name")) == "Gamepad_Right2D":
             mapa = m
     mods = list(mapa.get_editor_property("modifiers"))
     nomes = [x.get_class().get_name() for x in mods]
-    chk("Look do gamepad: modificadores = zona morta, Negate Y, curva, delta tempo, escala", nomes == ["InputModifierDeadZone", "InputModifierNegate", "InputModifierResponseCurveExponential",
+    chk("Look do gamepad: modificadores = zona morta, curva, delta tempo, escala (sem Negate)", nomes == ["InputModifierDeadZone", "InputModifierResponseCurveExponential",
                                                                                                   "InputModifierScaleByDeltaTime", "InputModifierScalar"], nomes)
-    neg = next((x for x in mods if isinstance(x, unreal.InputModifierNegate)), None)
-    xyz = [neg.get_editor_property(c) for c in "xyz"] if neg else None
-    chk("Look do gamepad: o Negate e so no Y (o pitch legado e -2,5; o mouse tem o mesmo Negate)", xyz == [False, True, False], xyz)
+    chk("Look do gamepad: sem Negate no stick (o FSceneViewport ja inverte o Gamepad_RightY; so o mouse tem Negate no Y)", not [x for x in mods if isinstance(x, unreal.InputModifierNegate)], nomes)
     sc = next((x for x in mods if isinstance(x, unreal.InputModifierScalar)), None)
     v = sc.get_editor_property("scalar") if sc else None
     chk("Look do gamepad: escala horizontal 60 e vertical menor (42)", v is not None and abs(v.x - 60.0) < 1e-3 and abs(v.y - 42.0) < 1e-3, (v.x, v.y) if v else None)
