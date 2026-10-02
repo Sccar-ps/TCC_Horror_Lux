@@ -5,7 +5,14 @@
 # passando pelos MESMOS modificadores do IMC), menos o dispositivo. Compara o stick com o mouse (Mouse2D) e com as teclas (W/A/S/D).
 # Por que existe: com bEnableLegacyInputScales ligado, a escala de pitch do PlayerController e -2,5 (BaseGame.ini): AddControllerPitchInput(+) olha para BAIXO.
 # O mouse tem Negate no Y por isso; o stick do pack nao tinha e empurrar o stick direito para cima olhava para baixo (corrigido em gamepad_input.py).
+# Desde 02/10 o Look do stick tem curva 1,5 e o vertical a 0,7 do horizontal (gamepad_input.py: LOOK_CURVA, LOOK_VERTICAL). As constantes abaixo sao a
+# ESPECIFICACAO que o teste confere; se mudar la, mude aqui.
 import json, math, os, sys, time, traceback, unreal
+
+YAW_MAX = 150.0               # graus/s com o stick a fundo (2,5 graus de escala legada x 60)
+PITCH_MAX = YAW_MAX * 0.7     # vertical mais lento que o horizontal
+CURVA = 1.5                   # expoente da resposta depois da zona morta
+ZONA = (0.25, 0.95)           # zona morta radial (inicio, teto)
 
 ROT = sys.argv[1] if len(sys.argv) > 1 else "eixos"
 SAVED = unreal.Paths.convert_relative_path_to_full(unreal.Paths.project_saved_dir())
@@ -54,6 +61,12 @@ def mods(acao, tecla, sem=()):
 
 def norm(a):
     return (a + 180.0) % 360.0 - 180.0
+
+
+def previsto(incl, maximo):
+    """graus/s previstos para uma inclinacao (radial) num eixo: zona morta reescalada, depois a curva"""
+    t = min(1.0, max(0.0, (incl - ZONA[0]) / (ZONA[1] - ZONA[0])))
+    return maximo * t ** CURVA
 
 
 def injeta(acao, vec, lista, seg):
@@ -126,34 +139,71 @@ def teste():
     chk("Look: MOUSE para cima olha para cima (pitch %+.2f)" % p, p > 0.05, round(p, 3))
     p, y, _, _, _ = yield from gira(unreal.Vector(0.2, 0.0, 0.0), mods(IA_LOOK, "Mouse2D"), 0.3)
     chk("Look: MOUSE para a direita gira a direita (yaw %+.2f)" % y, y > 0.05, round(y, 3))
-    p, y, _, _, _ = yield from gira(unreal.Vector(0.0, 0.3, 0.0), mods(IA_LOOK, "Gamepad_Right2D", sem=("InputModifierNegate",)), 0.3)
+    # stick a 0,5 (com a curva 1,5, 0,3 quase nao gira); so o sinal importa aqui
+    stick = mods(IA_LOOK, "Gamepad_Right2D")
+    p, y, _, _, _ = yield from gira(unreal.Vector(0.0, 0.5, 0.0), mods(IA_LOOK, "Gamepad_Right2D", sem=("InputModifierNegate",)), 0.3)
     w("   (referencia: o stick SEM o Negate, como o pack o entregava, deu pitch %+.2f)" % p)
     S["pitch_sem_negate"] = p
-    p, y, _, _, _ = yield from gira(unreal.Vector(0.0, 0.3, 0.0), mods(IA_LOOK, "Gamepad_Right2D"), 0.3)
+    p, y, _, _, _ = yield from gira(unreal.Vector(0.0, 0.5, 0.0), stick, 0.3)
     chk("Look: STICK para cima olha para cima (pitch %+.2f; sem o Negate dava %+.2f)" % (p, S["pitch_sem_negate"]), p > 0.05 and S["pitch_sem_negate"] < -0.05, (round(p, 3), round(S["pitch_sem_negate"], 3)))
-    p, y, _, _, _ = yield from gira(unreal.Vector(0.0, -0.3, 0.0), mods(IA_LOOK, "Gamepad_Right2D"), 0.3)
+    chk("Look: STICK so para cima nao gira para os lados (yaw %+.3f)" % y, abs(y) < 0.05, round(y, 4))
+    p, y, _, _, _ = yield from gira(unreal.Vector(0.0, -0.5, 0.0), stick, 0.3)
     chk("Look: STICK para baixo olha para baixo (pitch %+.2f)" % p, p < -0.05, round(p, 3))
-    p, y, _, _, _ = yield from gira(unreal.Vector(0.3, 0.0, 0.0), mods(IA_LOOK, "Gamepad_Right2D"), 0.3)
+    p, y, _, _, _ = yield from gira(unreal.Vector(0.5, 0.0, 0.0), stick, 0.3)
     chk("Look: STICK para a direita gira a direita (yaw %+.2f)" % y, y > 0.05, round(y, 3))
-    p, y, _, _, _ = yield from gira(unreal.Vector(-0.3, 0.0, 0.0), mods(IA_LOOK, "Gamepad_Right2D"), 0.3)
+    chk("Look: STICK so para a direita nao mexe o vertical (pitch %+.3f)" % p, abs(p) < 0.05, round(p, 4))
+    p, y, _, _, _ = yield from gira(unreal.Vector(-0.5, 0.0, 0.0), stick, 0.3)
     chk("Look: STICK para a esquerda gira a esquerda (yaw %+.2f)" % y, y < -0.05, round(y, 3))
-    # ---------------- LOOK: velocidade em graus por segundo de TEMPO DE JOGO, a varios FPS (ScaleByDeltaTime x60 = independe do FPS) ----------------
-    esperado = 150.0
+    # ---------------- LOOK: velocidade a fundo em graus por segundo de TEMPO DE JOGO, a varios FPS (ScaleByDeltaTime = independe do FPS) ----------------
+    # pitch por 0,5 s: a 105 graus/s nao chega ao limite de 89,9 graus do camera manager
+    up = unreal.Vector(0.0, 1.0, 0.0)
+    taxas = {}
     for fps in (30, 60, 120):
         limita_fps(fps)
         yield from espera(0.8)
-        p, y, dt, n, nf = yield from gira(rt, mods(IA_LOOK, "Gamepad_Right2D"), 0.9)
-        taxa = y / dt if dt > 0 else 0.0
-        w("   teto %d FPS: %.1f graus em %.3f s de jogo (%d injecoes, %d quadros do motor = %.0f quadros/s)" % (fps, y, dt, n, nf, nf / dt if dt else 0))
-        chk("Look: stick a fundo = ~150 graus/s de tempo de jogo com teto de %d FPS (medido %.0f, %d quadros/s)" % (fps, taxa, nf / dt if dt else 0), abs(taxa - esperado) < 0.15 * esperado, round(taxa, 1))
+        p, y, dt, n, nf = yield from gira(rt, stick, 0.9)
+        ty = y / dt if dt > 0 else 0.0
+        w("   teto %d FPS, horizontal: %.1f graus em %.3f s de jogo (%d injecoes, %d quadros do motor = %.0f quadros/s)" % (fps, y, dt, n, nf, nf / dt if dt else 0))
+        chk("Look: horizontal a fundo = ~%.0f graus/s com teto de %d FPS (medido %.0f, %d quadros/s)" % (YAW_MAX, fps, ty, nf / dt if dt else 0), abs(ty - YAW_MAX) < 0.15 * YAW_MAX, round(ty, 1))
+        p, y, dt, n, nf = yield from gira(up, stick, 0.5)
+        tp = p / dt if dt > 0 else 0.0
+        w("   teto %d FPS, vertical: %.1f graus em %.3f s de jogo (%d quadros do motor)" % (fps, p, dt, nf))
+        chk("Look: vertical a fundo = ~%.0f graus/s com teto de %d FPS (medido %.0f)" % (PITCH_MAX, fps, tp), abs(tp - PITCH_MAX) < 0.15 * PITCH_MAX, round(tp, 1))
+        taxas[fps] = (ty, tp)
     limita_fps(60)
     yield from espera(0.5)
-    p, y, dt, n, nf = yield from gira(unreal.Vector(0.5, 0.0, 0.0), mods(IA_LOOK, "Gamepad_Right2D"), 0.9)
-    taxa_m = y / dt if dt > 0 else 0.0
-    esperado_m = 150.0 * (0.5 - 0.25) / (0.95 - 0.25)
-    chk("Look: stick a meia inclinacao = %.0f graus/s (zona morta radial 0,25..0,95, curva linear): medido %.0f" % (esperado_m, taxa_m), abs(taxa_m - esperado_m) < 0.2 * esperado_m, round(taxa_m, 1))
-    p, y, dt, n, nf = yield from gira(unreal.Vector(0.2, 0.1, 0.0), mods(IA_LOOK, "Gamepad_Right2D"), 0.9)
+    ty, tp = taxas[60]
+    razao = tp / ty if ty else 0.0
+    chk("Look: vertical MAIS LENTO que o horizontal, razao %.2f (esperado %.2f)" % (razao, PITCH_MAX / YAW_MAX), abs(razao - PITCH_MAX / YAW_MAX) < 0.05, round(razao, 3))
+    # ---------------- LOOK: curva de resposta (sem aceleracao: o giro so depende da inclinacao) ----------------
+    curva = []
+    for incl in (0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.95):
+        p, y, dt, n, nf = yield from gira(unreal.Vector(incl, 0.0, 0.0), stick, 0.6)
+        curva.append((incl, y / dt if dt > 0 else 0.0, previsto(incl, YAW_MAX)))
+    w("   curva horizontal (inclinacao: medido / previsto graus/s; linear seria):")
+    for incl, med, prev in curva:
+        lin = YAW_MAX * min(1.0, max(0.0, (incl - ZONA[0]) / (ZONA[1] - ZONA[0])))
+        w("      %.2f: %6.1f / %6.1f   (linear %.1f)" % (incl, med, prev, lin))
+    fora = [(i, round(m, 1), round(pv, 1)) for i, m, pv in curva if abs(m - pv) > max(0.2 * pv, 1.5)]
+    chk("Look: horizontal segue a curva 1,5 em 7 inclinacoes de 0,30 a 0,95 (fora da tolerancia: %s)" % (fora or "nenhuma"), not fora, [(i, round(m, 1)) for i, m, _ in curva])
+    sobe = all(curva[k + 1][1] > curva[k][1] for k in range(len(curva) - 1))
+    chk("Look: quanto mais inclinado, mais rapido, sem degrau (monotona)", sobe, [round(m, 1) for _, m, _ in curva])
+    p, y, dt, n, nf = yield from gira(unreal.Vector(0.0, 0.5, 0.0), stick, 0.6)
+    tpm, ppm = (p / dt if dt > 0 else 0.0), previsto(0.5, PITCH_MAX)
+    chk("Look: vertical a meia inclinacao = %.0f graus/s (medido %.0f)" % (ppm, tpm), abs(tpm - ppm) < max(0.2 * ppm, 1.5), round(tpm, 1))
+    # diagonal: a zona morta e radial e a curva e por eixo; os dois eixos giram para o lado certo e o vertical continua a 0,7
+    p, y, dt, n, nf = yield from gira(unreal.Vector(0.6, 0.6, 0.0), stick, 0.5)
+    tdy, tdp = (y / dt, p / dt) if dt > 0 else (0.0, 0.0)
+    t = (math.hypot(0.6, 0.6) - ZONA[0]) / (ZONA[1] - ZONA[0]) * math.sqrt(0.5)
+    chk("Look: diagonal cima-direita gira para a direita e para cima (yaw %.0f, pitch %.0f graus/s; previsto %.0f e %.0f)" % (tdy, tdp, YAW_MAX * t ** CURVA, PITCH_MAX * t ** CURVA),
+        abs(tdy - YAW_MAX * t ** CURVA) < 0.2 * YAW_MAX * t ** CURVA and abs(tdp - PITCH_MAX * t ** CURVA) < 0.2 * PITCH_MAX * t ** CURVA, (round(tdy, 1), round(tdp, 1)))
+    p, y, dt, n, nf = yield from gira(unreal.Vector(0.2, 0.1, 0.0), stick, 0.9)
     chk("Look: dentro da zona morta (0,22 de inclinacao) a camera nao se move (pitch %.2f, yaw %.2f)" % (p, y), abs(p) < 0.5 and abs(y) < 0.5, (round(p, 3), round(y, 3)))
+    # ---------------- LOOK: o MOUSE nao muda (o vertical igual ao horizontal, por contagem) ----------------
+    p_m, _, _, n_p, _ = yield from gira(unreal.Vector(0.0, 0.2, 0.0), mods(IA_LOOK, "Mouse2D"), 0.4)
+    _, y_m, _, n_y, _ = yield from gira(unreal.Vector(0.2, 0.0, 0.0), mods(IA_LOOK, "Mouse2D"), 0.4)
+    gp, gy = (p_m / n_p if n_p else 0.0), (y_m / n_y if n_y else 0.0)
+    chk("Look: MOUSE com o vertical igual ao horizontal, como antes (%.3f x %.3f graus por contagem de 0,2; esperado 0,5)" % (gp, gy), abs(gp - 0.5) < 0.08 and abs(gy - 0.5) < 0.08, (round(gp, 4), round(gy, 4)))
     limita_fps(0)
 
     # ---------------- MOVE: direcao e velocidade ----------------

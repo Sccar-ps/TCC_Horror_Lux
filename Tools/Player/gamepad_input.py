@@ -15,6 +15,10 @@
 #     O Look do gamepad ganha tambem Negate no Y: o projeto liga bEnableLegacyInputScales e a escala de pitch do PlayerController e
 #     -2,5 (BaseGame.ini), entao AddControllerPitchInput(+) olha para BAIXO. O mouse ja tinha Negate no Y por isso; o stick do pack
 #     nao tinha, e empurrar o stick direito para cima olhava para baixo. Medido no PIE (gamepad_pie_eixos.py).
+#     Refino de 02/10 (pedido do Gabriel): o vertical do stick fica MAIS LENTO que o horizontal (LOOK_VERTICAL = 0,7: yaw 150 graus/s, pitch 105
+#     a fundo) e a resposta ganha curva exponencial 1,5 depois da zona morta (LOOK_CURVA): inclinacao pequena gira devagar e com precisao, a fundo
+#     a velocidade e a mesma. Sem aceleracao por tempo: o giro so depende da inclinacao. Cadeia final do Look do stick:
+#     zona morta -> Negate Y -> curva -> x delta tempo -> Scalar(60, 42, 1). O mouse (Mouse2D) NAO muda: a IA_Look nao tem modificador proprio.
 #     NAO mapeia IA_Sprint nem IA_Jump (D09, decisao do Gabriel de 27/09: sem corrida e sem pulo). Mapear so no gamepad religaria
 #     a corrida so para quem joga de controle.
 #     Teclado e mouse ficam IDENTICOS: o verificar compara com o snapshot (Tools/Player/gamepad_input_original.json).
@@ -54,7 +58,10 @@ GAMEPAD = (("IA_Interact", "Gamepad_FaceButton_Bottom"), ("IA_Crouch", "Gamepad_
 # nunca no gamepad (D09)
 PROIBIDAS = ("IA_Sprint", "IA_Jump")
 ZONA = {"lower": 0.25, "upper": 0.95}   # radial; antes 0,2 / 1,0 (padrao do modificador). Microsoft recomenda 0,24 (esq.) e 0,265 (dir.)
-LOOK_ESCALA = 60.0                      # ScaleByDeltaTime x 60: 1 quadro a 60 FPS = o valor de hoje
+LOOK_ESCALA = 60.0                      # ScaleByDeltaTime x 60: 1 quadro a 60 FPS = o valor de hoje (yaw 150 graus/s a fundo)
+LOOK_VERTICAL = 0.7                     # pitch = 0,7 do yaw (105 graus/s a fundo). 1,0 = igual ao horizontal (como era ate 01/10)
+LOOK_CURVA = 1.5                        # expoente da resposta depois da zona morta. 1,0 = linear (como era ate 01/10)
+ORDEM_LOOK = ["InputModifierDeadZone", "InputModifierNegate", "InputModifierResponseCurveExponential", "InputModifierScaleByDeltaTime", "InputModifierScalar"]
 # gatilho de cada acao nova (padrao Pressed). Confirmar/Voltar agem ao soltar (ver o cabecalho)
 SOLTAR = ("IA_UI_Confirmar", "IA_UI_Voltar")
 # acoes novas: nome -> (descricao, teclas do IMC_LuxEntrada)
@@ -154,8 +161,39 @@ def negate_y_certo(neg):
     return neg is not None and not neg.get_editor_property("x") and neg.get_editor_property("y") and not neg.get_editor_property("z")
 
 
+def look_escala():
+    """Scalar do Look do stick: X = yaw, Y = pitch (menor; ver LOOK_VERTICAL)"""
+    return unreal.Vector(LOOK_ESCALA, LOOK_ESCALA * LOOK_VERTICAL, 1.0)
+
+
+def look_curva():
+    """expoente por eixo: X e Y iguais (a mesma forma nos dois eixos; so a velocidade maxima difere); Z nao se usa"""
+    return unreal.Vector(LOOK_CURVA, LOOK_CURVA, 1.0)
+
+
+def vetor_igual(v, alvo):
+    return v is not None and abs(v.x - alvo.x) < 1e-4 and abs(v.y - alvo.y) < 1e-4 and abs(v.z - alvo.z) < 1e-4
+
+
+def look_falhas(m):
+    """o que falta no Look do stick (lista vazia = certo): ordem, Negate so no Y, curva e escala"""
+    f = []
+    ordem = [x.get_class().get_name() for x in m.get_editor_property("modifiers")]
+    if ordem != ORDEM_LOOK:
+        f.append("ordem %s (esperado %s)" % (ordem, ORDEM_LOOK))
+    if not negate_y_certo(mod_de(m, unreal.InputModifierNegate)):
+        f.append("Negate nao e so no Y (stick vertical invertido em relacao ao mouse)")
+    cv = mod_de(m, unreal.InputModifierResponseCurveExponential)
+    if cv is None or not vetor_igual(cv.get_editor_property("curve_exponent"), look_curva()):
+        f.append("curva de resposta diferente de %.2f" % LOOK_CURVA)
+    sc = mod_de(m, unreal.InputModifierScalar)
+    if mod_de(m, unreal.InputModifierScaleByDeltaTime) is None or sc is None or not vetor_igual(sc.get_editor_property("scalar"), look_escala()):
+        f.append("escala diferente de x%.0f (yaw) / x%.0f (pitch) por segundo" % (LOOK_ESCALA, LOOK_ESCALA * LOOK_VERTICAL))
+    return f
+
+
 def ajusta_sticks(imc):
-    """Left2D: zona morta 0,25 / 0,95 radial (o x50 fica). Right2D: zona morta + Negate Y + ScaleByDeltaTime + Scalar(60,60,1)."""
+    """Left2D: zona morta 0,25 / 0,95 radial (o x50 fica). Right2D: zona morta + Negate Y + curva 1,5 + ScaleByDeltaTime + Scalar(60,42,1)."""
     maps = mapeamentos(imc)
     mudou = False
     for i, m in enumerate(maps):
@@ -173,23 +211,19 @@ def ajusta_sticks(imc):
             dz.set_editor_property("type", unreal.DeadZoneType.RADIAL)
             mudou = True
         if a == "IA_Look":
-            # ordem: zona morta -> Negate Y -> x delta tempo -> x60 (reaproveita o que ja existe; so cria o que falta)
-            neg = mod_de(m, unreal.InputModifierNegate)
-            dt = mod_de(m, unreal.InputModifierScaleByDeltaTime)
-            sc = mod_de(m, unreal.InputModifierScalar)
-            ordem = [x.get_class().get_name() for x in m.get_editor_property("modifiers")]
-            if ordem != ["InputModifierDeadZone", "InputModifierNegate", "InputModifierScaleByDeltaTime", "InputModifierScalar"] or not negate_y_certo(neg):
-                if neg is None:
-                    neg = unreal.new_object(unreal.InputModifierNegate, outer=imc)
+            # ordem: zona morta -> Negate Y -> curva -> x delta tempo -> escala. A curva vem logo depois da zona morta (valor ainda em 0..1) e antes
+            # do delta tempo (elevar o valor ja multiplicado pelo tempo do quadro faria o giro depender do FPS). Reaproveita o que ja existe.
+            if look_falhas(m):
+                neg = mod_de(m, unreal.InputModifierNegate) or unreal.new_object(unreal.InputModifierNegate, outer=imc)
                 neg.set_editor_property("x", False)
                 neg.set_editor_property("y", True)
                 neg.set_editor_property("z", False)
-                if dt is None:
-                    dt = unreal.new_object(unreal.InputModifierScaleByDeltaTime, outer=imc)
-                if sc is None:
-                    sc = unreal.new_object(unreal.InputModifierScalar, outer=imc)
-                sc.set_editor_property("scalar", unreal.Vector(LOOK_ESCALA, LOOK_ESCALA, 1.0))
-                m.set_editor_property("modifiers", [dz, neg, dt, sc])
+                cv = mod_de(m, unreal.InputModifierResponseCurveExponential) or unreal.new_object(unreal.InputModifierResponseCurveExponential, outer=imc)
+                cv.set_editor_property("curve_exponent", look_curva())
+                dt = mod_de(m, unreal.InputModifierScaleByDeltaTime) or unreal.new_object(unreal.InputModifierScaleByDeltaTime, outer=imc)
+                sc = mod_de(m, unreal.InputModifierScalar) or unreal.new_object(unreal.InputModifierScalar, outer=imc)
+                sc.set_editor_property("scalar", look_escala())
+                m.set_editor_property("modifiers", [dz, neg, cv, dt, sc])
                 maps[i] = m
                 mudou = True
     if mudou:
@@ -247,7 +281,8 @@ def instalar():
                 w("IMC_Default: %s <- %s" % (acao, t))
                 salvar.add(IMC)
         if ajusta_sticks(imc):
-            w("IMC_Default: zona morta %.2f/%.2f radial nos dois sticks; Look do gamepad com ScaleByDeltaTime x%d" % (ZONA["lower"], ZONA["upper"], LOOK_ESCALA))
+            w("IMC_Default: zona morta %.2f/%.2f radial nos dois sticks; Look do gamepad: curva %.2f, ScaleByDeltaTime, escala x%.0f (yaw) / x%.0f (pitch)"
+              % (ZONA["lower"], ZONA["upper"], LOOK_CURVA, LOOK_ESCALA, LOOK_ESCALA * LOOK_VERTICAL))
             salvar.add(IMC)
     ajusta_zoom(salvar)
     # 2) acoes novas + IMC_LuxEntrada
@@ -323,11 +358,7 @@ def verificar(silencioso=False):
         if dz is None or abs(dz.get_editor_property("lower_threshold") - ZONA["lower"]) > 1e-6 or dz.get_editor_property("type") != unreal.DeadZoneType.RADIAL:
             falhas.append("%s <- %s sem zona morta radial %.2f" % (acao, k, ZONA["lower"]))
         if acao == "IA_Look":
-            sc = mod_de(m, unreal.InputModifierScalar)
-            if mod_de(m, unreal.InputModifierScaleByDeltaTime) is None or sc is None or abs(sc.get_editor_property("scalar").x - LOOK_ESCALA) > 1e-6:
-                falhas.append("Look do gamepad sem ScaleByDeltaTime x%d" % LOOK_ESCALA)
-            if not negate_y_certo(mod_de(m, unreal.InputModifierNegate)):
-                falhas.append("Look do gamepad sem Negate so no Y (stick vertical invertido em relacao ao mouse)")
+            falhas += ["Look do gamepad: " + x for x in look_falhas(m)]
     # o zoom (segurar/soltar) tem de seguir o botao tambem com o jogo pausado
     if not carrega(IA_DIR + "/IA_Zoom").get_editor_property("trigger_when_paused"):
         falhas.append("IA_Zoom sem trigger_when_paused (zoom preso depois de pausar com o botao apertado)")
