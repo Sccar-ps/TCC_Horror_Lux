@@ -8,6 +8,12 @@
 #   py "<projeto>/Tools/Loop/add_vulto_corre.py" instalar|verificar|desfazer
 # Loop 1 (30/09): instalar_l1|verificar_l1|desfazer_l1 (rode DEPOIS do add_loop_events.py instalar). v3 = BP_LuxVultoQuadros
 #   (vulto por quadros ancorados no piscar do evento) + M_LuxVultoSombra; nada do loop 2 e tocado.
+# Loop 1 v4 (05/10, "o vulto pipoca e foge do compasso"): BP_LuxVultoFluido (a presenca da figura, em Custom Primitive Data, segue a
+#   intensidade REAL da luz propria dela; anda de verdade; entra/sai por opacidade). O v3 fica intacto como retorno. Os numeros moram em
+#   vulto_cronograma.py. Etapas (cada uma num processo; salvar so o que e do Loop 1):
+#   instalar_l1 assets  -> COMMANDLET (editor grafico FECHADO; ver lux_cmdlet_l1.py): cria e salva SO os 4 assets novos
+#   instalar_l1 mapa    -> EDITOR, fora do PIE: luzes do Loop 1 + as duas figuras + verificar completo; salva o Mapa_B
+#   verificar_assets (so leitura, serve no commandlet) | verificar_mapa (editor) | verificar_l1 (os dois) | desfazer_l1
 # Log por operacao (com flush): Saved/LuxSnapshots/vulto_corre_log.txt
 import importlib, os, sys, traceback, unreal
 
@@ -15,6 +21,8 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, AQUI)
 import add_loop_events as ale
 importlib.reload(ale)
+import vulto_cronograma as vc
+importlib.reload(vc)
 B, entrada, junc, G = ale.B, ale.entrada, ale.junc, ale.G
 KSL, KML, GS = ale.KSL, ale.KML, ale.GS
 EAL, BEL, BGE = unreal.EditorAssetLibrary, unreal.BlueprintEditorLibrary, unreal.BlueprintGraphEditor
@@ -79,19 +87,26 @@ ANIM_ANDAR = DIR + "/A_LuxVultoAndar"   # copia com ForceRootLock (o original an
 #    passos e a parede oeste da juncao (4,6-5,8 m), que estava no breu: no PIE de 30/09 a figura estava no quadro (desvio de
 #    4-17 graus, 2,8-3,6 m) e nao aparecia em nenhuma janela acesa. Junto ao batente oeste do vao (CutPart10): acende o
 #    batente, a parede oeste e o chao, que sao o fundo de P0-P2 vistos da S1.
+# 05/10: RECONCILIADO COM O MAPA, depois com a decisao do Bruno. Depois do v3 (55dcf08) a equipe moveu as duas luzes a mao para o teto (z 300)
+# nos commits edc0795, ed89ce7 e 7bb7ed6 (v3: LuzFundo (-3250, -1080, 110) raio 450; LuzPassos (-3300, -660, 230)). O A/B no PIE de 05/10 mostrou
+# que, com a LuzFundo do teto (raio 223), o vulto do vao fica quase imperceptivel (nitido na posicao do v3): decisao do Bruno em 05/10: a
+# LuzFundo VOLTA a posicao do v3; a LuzPassos FICA no teto (a figura dos passos e legivel quando o jogador olha para ela; so alcanca o tronco
+# da figura ate x ~ -3104). O ensure_l1_luz aplica estes valores.
 L1_LUZES = {
     "LUX_L1_LuzFundo": {"pos": (-3250.0, -1080.0, 110.0), "cd": 0.3, "raio": 450.0, "temperatura": 3200.0},
-    "LUX_L1_LuzPassos": {"pos": (-3300.0, -660.0, 230.0), "cd": 0.15, "raio": 400.0, "temperatura": 3200.0},
+    "LUX_L1_LuzPassos": {"pos": (-3450.0, -720.0, 300.0), "cd": 0.15, "raio": 400.0, "temperatura": 3200.0},
 }
 
 # ------------------------------------------------------------------ Loop 1 v3 (30/09, polimento: medo, tensao, confusao de Santos)
 # O vulto do Loop 1 so existe "entre as piscadas": aparece no escuro, e visto parado contra a luz e muda de lugar no escuro.
-# Peca nova BP_LuxVultoQuadros (BP NOVO; o BP_LuxVultoCorre do loop 2 nao muda): le o DisparoT do evento por um timer de vigia
+# Peca BP_LuxVultoQuadros (BP NOVO; o BP_LuxVultoCorre do loop 2 nao muda): le o DisparoT do evento por um timer de vigia
 # de 0,05 s e, quando ele muda, executa QUADROS ancorados no DisparoT (Tempos/Posicoes/Poses/Yaws): em cada quadro teleporta,
 # congela a pose (SetPosition) e vira o rosto para a camera do jogador; esconde em DuracaoS. Os quadros vao por timer (sem Tick).
 # Visual "sombra viva" (M_LuxVultoSombra, unlit translucido, emissivo 0: a exposicao do escuro nao a clareia): opacidade com
 # borda que se desfaz (Fresnel), fumaca subindo por dentro (ruido 3D em espaco de mundo) e contorno que treme em degraus
 # (WPO pela normal, ruido trocado 8 vezes por segundo), corpo 7 % mais alto e mais magro que o manequim (escala da Figura).
+# 05/10: o v3 sai do mapa (as figuras viram BP_LuxVultoFluido, abaixo) mas FICA no disco, intacto, como retorno: cria_bp_quadros e
+# ensure_bp_quadros so servem para recriar o BP_LuxVultoQuadros se o asset se perder.
 BPQ = DIR + "/BP_LuxVultoQuadros"
 MEQ = BPQ + ".BP_LuxVultoQuadros_C"
 VERSAO_QUADROS = 1
@@ -102,29 +117,51 @@ SOMBRA_L1 = {"Opacidade": 0.65, "Borda": 0.7, "BordaExpoente": 2.0, "Fumaca": 0.
              "Tremor": 2.0, "TaxaTremor": 8.0, "EscalaTremor": 0.02}
 ESCALA_FIGURA = (0.93, 0.95, 1.07)   # malha: X ombros, Y profundidade, Z altura (~1,93 m): alta e magra demais
 CAPSULA = (28.0, 88.0)               # raio e meia-altura da checagem de folga da figura (canal Visibility)
-MARGEM_ESCURO = 0.06                 # s: quadro e sumico precisam cair dentro de um apagao com esta folga (vigia 0,05 s + 1 quadro)
-# s depois do INICIO do apagao: o piscar do evento e uma corrente de timers relativos (cada passo agenda o proximo) e atrasa ate
-# 1 quadro por passo; os quadros do vulto sao ancorados no DisparoT. Medido no PIE a ~3 quadros/s (editor em 2o plano): o
-# piscar atrasou 0,37 s no 3o passo e a figura saltou com a luz acesa. A 60 FPS o atraso fica em ~0,1 s nos 6 passos.
-MARGEM_INICIO = 0.08
-P_DIR = 0.333                        # pose de contato com o pe DIREITO a frente (anim_Walk_Fwd_Loop_L: 56,7 cm de passada)
-P_ESQ = 0.800                        # pose de contato com o pe ESQUERDO a frente (56,9 cm)
-# Pontos: fonte unica em add_loop_events.py (L1_VAO, L1_PASSOS), que tambem poe o som e o alvo do olhar dos eventos neles.
-# no_claro: indices de quadro que PODEM cair na luz acesa (o tranco do vao e de proposito); o resto tem de cair no escuro.
-FIGURAS_L1 = [
-    # beat 1: no vao do escritorio, encarando quem vem do quarto. Aparece no 1o apagao (t 0), e vista contra a LUX_L1_LuzFundo;
-    # no estalo do meio (0,925 s, luz acesa) da um tranco para o eixo do corredor, na direcao do jogador; some no 2o apagao
-    {"label": "LUX_Vulto_L1_Porta", "evento": "EV_L1_VultoParado", "anim": ANIM_IDLE, "tempos": [0.0, 0.925],
-     "posicoes": [(x, y, 0.0) for x, y in ale.L1_VAO], "poses": [0.5, 2.9], "yaws": [90.0, 90.0], "duracao": 1.97, "no_claro": [1]},
-    # beat 3: sai do vao rumo a entrada da sala. Cada passo (inicio de cada apagao, 0 / 1,3 / 2,6 s) leva a figura 55 cm adiante
-    # 0,1 s depois (folga para o atraso do piscar, MARGEM_INICIO); nas janelas acesas ela esta congelada no meio da passada (pe da
-    # frente alternando) e cada vez mais perto; some 0,4 s dentro do escuro final (4o passo em 3,9 s, so som, em L1_PASSOS[3]);
-    # a luz volta em 6,4 s e nao ha ninguem
-    {"label": "LUX_Vulto_L1_Passos", "evento": "EV_L1_PassosPesados", "anim": ANIM_ANDAR, "tempos": [0.0, 1.4, 2.7],
-     "posicoes": [(x, y, 0.0) for x, y in ale.L1_PASSOS[:3]], "poses": [P_ESQ, P_DIR, P_ESQ], "yaws": [37.2, 37.2, 37.2],
-     "duracao": 4.3, "no_claro": []},
-]
+FOLGA_PAREDE = 8.0                   # cm: a capsula tem de passar a pelo menos isso de qualquer parede (CutPart14: folga estimada 11,2 cm)
 
+# ------------------------------------------------------------------ Loop 1 v4 (05/10): BP_LuxVultoFluido
+# Causa do "pipocar": a figura e um preto translucido (opacidade 0,65 fixa, emissivo 0) que so existe como contraste contra o fundo
+# iluminado, e a luz muda em DEGRAU (25x em 1 quadro). Ligar/desligar a figura junto desse degrau e o que o jogador ve. Agora a figura
+# le a intensidade REAL da luz propria dela (LUX_L1_LuzFundo no vao, LUX_L1_LuzPassos nos passos) a cada 0,02 s e deriva uma presenca
+# P (0 a 1) que vai para o Custom Primitive Data 0 e MULTIPLICA a opacidade do corpo e da aura: entra depois de a luz subir, sai antes
+# de ela cair, nunca aparece/some em degrau e a figura anda de verdade. Numeros e regras: vulto_cronograma.py.
+BPF = DIR + "/BP_LuxVultoFluido"
+MEF = BPF + ".BP_LuxVultoFluido_C"
+VERSAO_FLUIDO = 1
+M_SOMBRA_P = DIR + "/M_LuxVultoSombra_P"    # copia da M_LuxVultoSombra + Presenca (a original nao muda)
+M_AURA_L1 = DIR + "/M_LuxVultoAura_L1"      # copia da M_LuxVultoAura + Presenca (a do loop 2 nao muda)
+MI_SOMBRA_L1P = DIR + "/MI_LuxVultoSombra_L1P"
+SOMBRA_L1P = dict(SOMBRA_L1, Fumaca=0.15)   # a fumaca em coordenadas de mundo cintila numa figura que anda: 0,4 -> 0,15 so na MI nova
+PRESENCA = "Presenca"
+CPD_INDICE = 0
+CLASSE_FLUIDO = "BP_LuxVultoFluido_C"
+NOMES_REAIS = dict(bp=BPF, sombra=M_SOMBRA_P, aura=M_AURA_L1, mi=MI_SOMBRA_L1P)
+# ensaio em memoria: so o create_blueprint_asset_with_parent aceita /Temp; os materiais (AssetTools recusa /Temp) caem em ZZ_* no DIR
+# e nunca sao salvos
+NOMES_ENSAIO = dict(bp="/Temp/LuxProbe/BP_LuxVultoFluido_ensaio", sombra=DIR + "/ZZ_M_LuxVultoSombra_P", aura=DIR + "/ZZ_M_LuxVultoAura_L1",
+                    mi=DIR + "/ZZ_MI_LuxVultoSombra_L1P")
+PROPRIOS_L1 = tuple(NOMES_REAIS.values())                       # so estes 4 sao gravados pela etapa 'assets'
+PROPRIOS_V3 = (ANIM_ANDAR, M_SOMBRA, MI_SOMBRA_L1, BPQ)         # v3: nunca gravados por esta etapa (podem aparecer sujos so numa retomada)
+FIGURAS_L1 = [dict(chave=k, label=vc.EVENTOS[k]["figura"], evento=vc.EVENTOS[k]["nome"], luz=vc.EVENTOS[k]["luz"],
+                   anim=ANIM_IDLE if k == "vulto" else ANIM_ANDAR) for k in ("vulto", "passos")]
+# variaveis do BP: nome, tipo, editavel na instancia, padrao no CDO (None = sem padrao). Os padroes vem de vc.PADROES_BP; os valores
+# reais, de vc.dados_instancia() aplicado pelo ensure_l1_figuras.
+VARS_FLUIDO = [("Evento", "evt", True, None), ("ActorLuz", "actor", True, None), ("DuracaoS", "real", True, vc.PADROES_BP["DuracaoS"]),
+               ("JanAcesa", "real[]", True, None), ("TSubNom", "real[]", True, None),
+               ("EntradaS", "real", True, vc.PADROES_BP["EntradaS"]), ("SaidaS", "real", True, vc.PADROES_BP["SaidaS"]),
+               ("MargemS", "real", True, vc.PADROES_BP["MargemS"]), ("TolS", "real", True, vc.PADROES_BP["TolS"]),
+               ("PontoA", "vec", True, None), ("PontoB", "vec", True, None), ("TMovI", "real", True, vc.PADROES_BP["TMovI"]),
+               ("TMovF", "real", True, vc.PADROES_BP["TMovF"]), ("bEncarar", "bool", True, vc.PADROES_BP["bEncarar"]),
+               ("YawFixo", "real", True, vc.PADROES_BP["YawFixo"]), ("OffsetYaw", "real", True, vc.PADROES_BP["OffsetYaw"]),
+               ("FaseIni", "real", True, vc.PADROES_BP["FaseIni"]), ("TaxaAnim", "real", True, vc.PADROES_BP["TaxaAnim"]),
+               ("DistMinCam", "real", True, vc.PADROES_BP["DistMinCam"]), ("DistPlenaCam", "real", True, vc.PADROES_BP["DistPlenaCam"]),
+               ("bLog", "bool", True, vc.PADROES_BP["bLog"]),
+               # estado (nao editavel)
+               ("UltDisparo", "real", False, -1000.0), ("T0", "real", False, 0.0), ("bAtivo", "bool", False, False),
+               ("bLuzAnt", "bool", False, False), ("NSub", "int", False, 0), ("TSub", "real", False, 0.0), ("YawBase", "real", False, 0.0),
+               ("IntensOrig", "real", False, 1.0), ("PAtual", "real", False, 0.0), ("Luz", "lc", False, None),
+               ("VersaoFluido", "int", False, 0)]
+FUNCOES_FLUIDO = ("Inicializar", "Atualizar", "Iniciar", "Amostrar", "Encerrar")
 
 def w(*a):
     line = " ".join(str(x) for x in a)
@@ -833,79 +870,434 @@ def ensure_bp_quadros():
     return cria_bp_quadros(), True
 
 
-def ensure_l1_figuras(bpq):
-    """Uma instancia de BP_LuxVultoQuadros por evento do Loop 1 (dados de instancia + pose e material na Figura desta instancia).
-    Figura de outra classe com o mesmo nome (a v2 era BP_LuxVultoCorre) e trocada."""
+# ------------------------------------------------------------------ Loop 1 v4: materiais (copias com a Presenca)
+def _duplica(origem, destino):
+    """AssetTools.duplicate_asset (so /Game: /Temp e recusado). Devolve o asset novo."""
+    pasta, nome = destino.rsplit("/", 1)
+    d = unreal.AssetToolsHelpers.get_asset_tools().duplicate_asset(nome, pasta, EAL.load_asset(origem))
+    if not d:
+        raise Aborta("duplicate_asset falhou: %s -> %s" % (origem, destino))
+    return d
+
+
+def _multiplica_pela_presenca(m):
+    """MP_OPACITY := fonte atual x ScalarParameter 'Presenca' (Custom Primitive Data, indice 0, padrao 0). Na sombra a fonte e o Saturate
+    final; na aura, o Multiply da opacidade (0,3). O emissivo continua constante 0 e o resto do grafo nao muda."""
+    MEL = unreal.MaterialEditingLibrary
+    fonte = MEL.get_material_property_input_node(m, unreal.MaterialProperty.MP_OPACITY)
+    if fonte is None:
+        raise Aborta("%s sem entrada em MP_OPACITY" % m.get_name())
+    pres = MEL.create_material_expression(m, unreal.MaterialExpressionScalarParameter, -700, 300)
+    pres.set_editor_property("parameter_name", PRESENCA)
+    pres.set_editor_property("default_value", 0.0)
+    pres.set_editor_property("use_custom_primitive_data", True)
+    pres.set_editor_property("primitive_data_index", CPD_INDICE)
+    mul = MEL.create_material_expression(m, unreal.MaterialExpressionMultiply, -300, 100)
+    if not (MEL.connect_material_expressions(fonte, "", mul, "A") and MEL.connect_material_expressions(pres, "", mul, "B")
+            and MEL.connect_material_property(mul, "", unreal.MaterialProperty.MP_OPACITY)):
+        raise Aborta("%s: ligar a Presenca em MP_OPACITY falhou" % m.get_name())
+    # sob -nullrhi (commandlet) o recompile NAO compila de verdade (Material.cpp:2606, MEDIDO em 05/10): a 1a compilacao real e ao abrir
+    # o editor grafico; conferir o Log de Saida por 'Failed to compile Material'
+    MEL.recompile_material(m)
+
+
+def cria_material_fluido(n=NOMES_REAIS):
+    """M_LuxVultoSombra_P e M_LuxVultoAura_L1 (copias das do v3 + Presenca) e MI_LuxVultoSombra_L1P (parent a sombra nova, valores de
+    SOMBRA_L1P). Idempotente: o que ja existe e reusado (so confere a Presenca). Devolve {'sombra', 'aura', 'mi'}: os 3 objetos."""
+    MEL = unreal.MaterialEditingLibrary
+    obj = {}
+    for chave, origem in (("sombra", M_SOMBRA), ("aura", M_AURA)):
+        if EAL.does_asset_exist(n[chave]):
+            m = EAL.load_asset(n[chave])
+            if PRESENCA not in [str(x) for x in MEL.get_scalar_parameter_names(m)]:
+                raise Aborta("%s existe sem a Presenca: estado incompleto (feche o editor sem salvar)" % n[chave])
+            w("%s ja existe: mantido" % n[chave])
+        else:
+            w("duplicando %s -> %s" % (origem, n[chave]))
+            m = _duplica(origem, n[chave])
+            _multiplica_pela_presenca(m)
+        obj[chave] = m
+    nova = not EAL.does_asset_exist(n["mi"])
+    if nova:
+        w("criando %s" % n["mi"])
+        pasta, nome = n["mi"].rsplit("/", 1)
+        mi = unreal.AssetToolsHelpers.get_asset_tools().create_asset(nome, pasta, unreal.MaterialInstanceConstant,
+                                                                      unreal.MaterialInstanceConstantFactoryNew())
+        mi.set_editor_property("parent", obj["sombra"])
+    else:
+        mi = EAL.load_asset(n["mi"])
+    mud = nova
+    for k, v in SOMBRA_L1P.items():
+        if nova or abs(MEL.get_material_instance_scalar_parameter_value(mi, k) - v) > 1e-6:
+            MEL.set_material_instance_scalar_parameter_value(mi, k, v)
+            mud = True
+    if mud:
+        MEL.update_material_instance(mi)
+    obj["mi"] = mi
+    return obj
+
+
+# ------------------------------------------------------------------ Loop 1 v4: o BP (grafo)
+PC, SC, SKC, ACT = "/Script/Engine.PrimitiveComponent:", "/Script/Engine.SceneComponent:", "/Script/Engine.SkeletalMeshComponent:", "/Script/Engine.Actor:"
+CLS_LUZ = "/Script/CoreUObject.Class'/Script/Engine.LightComponent'"
+LCB = "/Script/Engine.LightComponentBase"
+
+
+def _disparo(b):
+    """Evento.DisparoT (puro): o instante em que o Executar do evento rodou"""
+    d = b.v("DisparoT", cls=ale.EVT_C)
+    b.lk(b.v("Evento"), d[0], "self")
+    return d
+
+
+def _fator_luz(b):
+    """f = SafeDivide(Luz.Intensity, IntensOrig) (puro): a intensidade REAL da luz propria da figura / a original"""
+    n = b.v("Intensity", cls=LCB)
+    b.lk(b.v("Luz"), n[0], "self")
+    d = b.c(KML + "SafeDivide", 0, 0)
+    b.lk(n, d, "A")
+    b.lk(b.v("IntensOrig"), d, "B")
+    return (d, "ReturnValue")
+
+
+def _cpd(b, valor):
+    """Figura.SetCustomPrimitiveDataFloat(CPD_INDICE, valor); valor = (no, pino) ou literal"""
+    n = b.c(PC + "SetCustomPrimitiveDataFloat", 0, 0, DataIndex=CPD_INDICE)
+    b.lk(b.v("Figura"), n, "self")
+    if isinstance(valor, tuple):
+        b.lk(valor, n, "Value")
+    else:
+        b.g.val(n, "Value", valor)
+    return n
+
+
+def _oculta(b, sim):
+    n = b.c(SC + "SetHiddenInGame", 0, 0, NewHidden="true" if sim else "false")
+    b.lk(b.v("Figura"), n, "self")
+    return n
+
+
+def _clamp01(b, x):
+    n = b.c(KML + "FClamp", 0, 0, Min=0.0, Max=1.0)
+    b.lk(x, n, "Value")
+    return (n, "ReturnValue")
+
+
+def _divide(b, a, d):
+    """SafeDivide(a, d); d = (no, pino) ou literal"""
+    n = b.c(KML + "SafeDivide", 0, 0)
+    b.lk(a, n, "A")
+    if isinstance(d, tuple):
+        b.lk(d, n, "B")
+    else:
+        b.g.val(n, "B", d)
+    return (n, "ReturnValue")
+
+
+def _item(b, arr):
+    """arr[NSub - 1] (puro): so e avaliado quando NSub esta entre 1 e Length (o Branch 'valida' guarda)"""
+    g = b.c(ale.ARR + "Array_Get", 0, 0)
+    b.lk(b.v(arr), g, "TargetArray")
+    b.lk(b.op("Subtract_IntInt", b.v("NSub"), 1), g, "Index")
+    return (g, "Item")
+
+
+def _camera(b):
+    """posicao da camera do jogador 0 (puro)"""
+    pcm = (b.c(GS + "GetPlayerCameraManager", 0, 0, PlayerIndex=0), "ReturnValue")
+    cam = b.c("/Script/Engine.PlayerCameraManager:GetCameraLocation", 0, 0)
+    b.lk(pcm, cam, "self")
+    return (cam, "ReturnValue")
+
+
+def grafo_fluido(bp, me):
+    """As 5 funcoes e o EventGraph do BP_LuxVultoFluido (especificacao: brief de 05/10, secao 2). NENHUM compile aqui dentro: no UE 5.8.3
+    criar um no de operador X (Add/Multiply/EqualEqual...) depois de um compile em que ja existia outro do mesmo operador derruba o editor
+    (P21, MEDIDO). Ordem da chamada: variaveis -> compile -> funcoes (sem nos) -> compile -> ESTA funcao -> UM compile."""
+    # ---------------------------------------------------------------- Inicializar (BeginPlay)
+    # P = 0 e escondida; SE ActorLuz valido guarda o LightComponent da luz propria (puro, sem exec) e a intensidade original; SE Evento
+    # valido guarda o DisparoT e arma o UNICO timer (loop 0,02 s). Os dois SE sao independentes (brief, secao 2); ActorLuz invalido nunca
+    # chega a uma instancia salva: o verificar_mapa exige ActorLuz == a luz propria da figura
+    b, en = entrada(bp, "Inicializar", me)
+    gc = b.c(ACT + "GetComponentByClass", 0, 0, ComponentClass=CLS_LUZ)
+    b.lk(b.v("ActorLuz"), gc, "self")
+    b_luz = b.br(b.valido(b.v("ActorLuz")))
+    s_luz = b.setv("Luz", src=(gc, "ReturnValue"))
+    intens = b.v("Intensity", cls=LCB)
+    b.lk(b.v("Luz"), intens[0], "self")
+    s_int = b.setv("IntensOrig", src=intens)
+    b_evt = b.br(b.valido(b.v("Evento")))
+    s_ult = b.setv("UltDisparo", src=_disparo(b))
+    tm = b.timer("Atualizar", vc.TIMER_S, loop=True)
+    j0 = junc(b)
+    b.ch(en, _cpd(b, 0.0), _oculta(b, True), b_luz)
+    b.ch((b_luz, "then"), s_luz, s_int, j0)
+    b.ch((b_luz, "else"), j0)
+    b.ch((j0, "then"), b_evt)
+    b.ch((b_evt, "then"), s_ult, tm)
+
+    # ---------------------------------------------------------------- Atualizar (timer): DisparoT novo -> Iniciar (vale tambem com bAtivo: re-disparo
+    # reinicia tudo); senao, se bAtivo -> Amostrar
+    b, en = entrada(bp, "Atualizar", me)
+    b0 = b.br(b.valido(b.v("Evento")))
+    b1 = b.br(b.op("NotEqual_DoubleDouble", _disparo(b), b.v("UltDisparo")))
+    ini = b.call("Iniciar")
+    b2 = b.br(b.v("bAtivo"))
+    am = b.call("Amostrar")
+    b.ch(en, b0)
+    b.ch((b0, "then"), b1)
+    b.ch((b1, "then"), ini)
+    b.ch((b1, "else"), b2)
+    b.ch((b2, "then"), am)
+
+    # ---------------------------------------------------------------- Iniciar
+    # zera o estado; bLuzAnt := luz acesa AGORA (f > 0,5; no disparo a luz real ja caiu); P = 0; YawBase uma vez; mostra (P = 0 e luz
+    # apagada); poe o pe na fase de contato (FaseIni + TaxaAnim x (Now - T0)) se FaseIni >= 0; ativa
+    b, en = entrada(bp, "Iniciar", me)
+    s_ult = b.setv("UltDisparo", src=_disparo(b))
+    s_t0 = b.setv("T0", src=_disparo(b))
+    s_n = b.setv("NSub", 0)
+    s_ts = b.setv("TSub", 0.0)
+    s_la = b.setv("bLuzAnt", src=b.op("Greater_DoubleDouble", _fator_luz(b), 0.5))
+    olha = b.c(KML + "FindLookAtRotation", 0, 0)
+    b.lk(b.v("PontoA"), olha, "Start")
+    b.lk(_camera(b), olha, "Target")
+    qb = b.c(KML + "BreakRotator", 0, 0)
+    b.lk((olha, "ReturnValue"), qb, "InRot")
+    s_yaw = b.setv("YawBase", src=(qb, "Yaw"))
+    b_fase = b.br(b.op("GreaterEqual_DoubleDouble", b.v("FaseIni"), 0.0))
+    avanco = b.op("Multiply_DoubleDouble", b.v("TaxaAnim"), b.menos_agora("T0"))                     # TaxaAnim x (Now - T0)
+    fase = b.op("Subtract_DoubleDouble", b.v("FaseIni"), b.op("Multiply_DoubleDouble", avanco, -1.0))  # FaseIni + avanco (sem Add)
+    sp = b.c(SKC + "SetPosition", 0, 0, bFireNotifies="false")
+    b.lk(b.v("Figura"), sp, "self")
+    b.lk(fase, sp, "InPos")
+    j = junc(b)
+    s_at = b.setv("bAtivo", "true")
+    b.ch(en, s_ult, s_t0, s_n, s_ts, s_la, _cpd(b, 0.0), s_yaw, _oculta(b, False), b_fase)
+    b.ch((b_fase, "then"), sp, j)
+    b.ch((b_fase, "else"), j)
+    b.ch((j, "then"), s_at)
+
+    # ---------------------------------------------------------------- Encerrar
+    b, en = entrada(bp, "Encerrar", me)
+    b.ch(en, _cpd(b, 0.0), _oculta(b, True), b.setv("bAtivo", "false"))
+
+    # ---------------------------------------------------------------- Amostrar (a cada 0,02 s enquanto bAtivo)
+    b, en = entrada(bp, "Amostrar", me)
+    # 1. f = Intensity / IntensOrig; L = FClamp((f - 0,2) / 0,6); acesa = f > 0,5
+    f = _fator_luz(b)
+    L = _clamp01(b, _divide(b, b.op("Subtract_DoubleDouble", f, 0.2), 0.6))
+    acesa = b.op("Greater_DoubleDouble", f, 0.5)
+    # 2. subida REAL da luz (acesa e antes apagada): NSub + 1 (Subtract(NSub, -1): sem Add) e TSub := Now; depois bLuzAnt := acesa
+    b_sub = b.br(b.e(acesa, b.nao(b.v("bLuzAnt"))))
+    s_n = b.setv("NSub", src=b.op("Subtract_IntInt", b.v("NSub"), -1))
+    s_ts = b.setv("TSub", src=b.now())
+    j1 = junc(b)
+    s_la = b.setv("bLuzAnt", src=acesa)
+    # 3. janela valida: 1 <= NSub <= Length(JanAcesa); Dur = JanAcesa[NSub-1]
+    ln = b.c(ale.ARR + "Array_Length", 0, 0)
+    b.lk(b.v("JanAcesa"), ln, "TargetArray")
+    b_val = b.br(b.e(b.op("Greater_IntInt", b.v("NSub"), 0), b.op("LessEqual_IntInt", b.v("NSub"), (ln, "ReturnValue"))))
+    dec = b.op("Subtract_DoubleDouble", b.now(), b.v("TSub"))                                   # Now - TSub
+    p_in = _clamp01(b, _divide(b, dec, b.v("EntradaS")))                                         # entrada
+    resta = b.op("Subtract_DoubleDouble", b.op("Subtract_DoubleDouble", _item(b, "JanAcesa"), b.v("MargemS")), dec)   # Dur - Margem - (Now - TSub)
+    p_out = _clamp01(b, _divide(b, resta, b.v("SaidaS")))                                        # saida
+    pmin = b.c(KML + "FMin", 0, 0)
+    b.lk(p_in, pmin, "A")
+    b.lk(p_out, pmin, "B")
+    err = b.c(KML + "Abs", 0, 0)                                                                  # |(TSub - T0) - TSubNom[NSub-1]|
+    b.lk(b.op("Subtract_DoubleDouble", b.op("Subtract_DoubleDouble", b.v("TSub"), b.v("T0")), _item(b, "TSubNom")), err, "A")
+    sel = b.c(KML + "SelectFloat", 0, 0, A=1.0, B=0.0)                                            # ok ? 1 : 0
+    b.lk(b.op("Less_DoubleDouble", (err, "ReturnValue"), b.v("TolS")), sel, "bPickA")
+    p_base = b.op("Multiply_DoubleDouble", b.op("Multiply_DoubleDouble", (pmin, "ReturnValue"), L), (sel, "ReturnValue"))
+    # posicao pelo relogio absoluto: alfa = FClamp(((Now - T0) - TMovI) / (TMovF - TMovI)); pos = VLerp(PontoA, PontoB, alfa)
+    alfa = _clamp01(b, _divide(b, b.op("Subtract_DoubleDouble", b.menos_agora("T0"), b.v("TMovI")),
+                               b.op("Subtract_DoubleDouble", b.v("TMovF"), b.v("TMovI"))))
+    lerp = b.c(KML + "VLerp", 0, 0)
+    b.lk(b.v("PontoA"), lerp, "A")
+    b.lk(b.v("PontoB"), lerp, "B")
+    b.lk(alfa, lerp, "Alpha")
+    pos = (lerp, "ReturnValue")
+    # 4. protecao de camera: P x FClamp((Dist2D(pos, camera) - DistMinCam) / (DistPlenaCam - DistMinCam))
+    d2 = b.c(KML + "Vector_Distance2D", 0, 0)
+    b.lk(pos, d2, "V1")
+    b.lk(_camera(b), d2, "V2")
+    guarda = _clamp01(b, _divide(b, b.op("Subtract_DoubleDouble", (d2, "ReturnValue"), b.v("DistMinCam")),
+                                 b.op("Subtract_DoubleDouble", b.v("DistPlenaCam"), b.v("DistMinCam"))))
+    s_p = b.setv("PAtual", src=b.op("Multiply_DoubleDouble", p_base, guarda))                    # janela valida
+    s_p0 = b.setv("PAtual", 0.0)                                                                  # fora das janelas
+    j2 = junc(b)
+    # 5. UM so SetCustomPrimitiveDataFloat (P = 0 tambem fora da janela)
+    cpd = _cpd(b, b.v("PAtual"))
+    # 6. posicao e yaw SEMPRE (a figura anda no escuro): bEncarar -> YawBase + OffsetYaw x (1 - FClamp((Now - T0) / DuracaoS)), senao YawFixo
+    giro = _clamp01(b, _divide(b, b.menos_agora("T0"), b.v("DuracaoS")))
+    yaw_enc = b.op("Subtract_DoubleDouble", b.v("YawBase"), b.op("Multiply_DoubleDouble", b.v("OffsetYaw"), b.op("Subtract_DoubleDouble", giro, 1.0)))
+    ysel = b.c(KML + "SelectFloat", 0, 0)
+    b.lk(yaw_enc, ysel, "A")
+    b.lk(b.v("YawFixo"), ysel, "B")
+    b.lk(b.v("bEncarar"), ysel, "bPickA")
+    rot = b.c(KML + "MakeRotator", 0, 0, Roll=0.0, Pitch=0.0)
+    b.lk((ysel, "ReturnValue"), rot, "Yaw")
+    sloc = b.c(ACT + "K2_SetActorLocationAndRotation", 0, 0, bSweep="false", bTeleport="true")
+    b.lk(pos, sloc, "NewLocation")
+    b.lk((rot, "ReturnValue"), sloc, "NewRotation")
+    # 7. log (so se bLog): formato FIXO "[FLUIDO] t= f= L= NSub= P= x= y=" (o harness do PIE le)
+    b_log = b.br(b.v("bLog"))
+    bv = b.c(KML + "BreakVector", 0, 0)
+    b.lk(pos, bv, "InVec")
+    pr = b.c(KSL + "PrintString", 0, 0, bPrintToScreen="false", bPrintToLog="true")
+    b.lk(b.s(["[FLUIDO] t=", b.fs(b.menos_agora("T0")), " f=", b.fs(f), " L=", b.fs(L), " NSub=", b.is_(b.v("NSub")), " P=",
+              b.fs(b.v("PAtual")), " x=", b.fs((bv, "X")), " y=", b.fs((bv, "Y"))]), pr, "InString")
+    j3 = junc(b)
+    # 8. fim: Now - T0 >= DuracaoS -> Encerrar
+    b_fim = b.br(b.op("GreaterEqual_DoubleDouble", b.menos_agora("T0"), b.v("DuracaoS")))
+    enc = b.call("Encerrar")
+    b.ch(en, b_sub)
+    b.ch((b_sub, "then"), s_n, s_ts, j1)
+    b.ch((b_sub, "else"), j1)
+    b.ch((j1, "then"), s_la, b_val)
+    b.ch((b_val, "then"), s_p, j2)
+    b.ch((b_val, "else"), s_p0, j2)
+    b.ch((j2, "then"), cpd, sloc, b_log)
+    b.ch((b_log, "then"), pr, j3)
+    b.ch((b_log, "else"), j3)
+    b.ch((j3, "then"), b_fim)
+    b.ch((b_fim, "then"), enc)
+
+    # ---------------------------------------------------------------- EventGraph
+    ge = BGE.get_graph_editor_by_name(bp, "EventGraph")
+    g = G(ge)
+    bpl = g.pos(BEL.add_event_override(bp, "ReceiveBeginPlay", unreal.IntPoint(0, 0)), 0, 0)
+    g.chain(bpl, g.call(me + ":Inicializar", 300, 0))
+
+
+def cria_bp_fluido(n=NOMES_REAIS, mats=None):
+    """BP NOVO (nome sem o prefixo BP_LuxVultoQuadros): componente Figura (SKM_Manny_Simple, rotacao -90, escala ESCALA_FIGURA, sem colisao
+    e sem sombra, ALWAYS_TICK_POSE, escondida, corpo MI_SOMBRA_L1P, aura M_AURA_L1) + variaveis + 5 funcoes. UM compile com nos (P21),
+    erros_bp vazio ou Aborta, VersaoFluido no CDO e um compile final (sem no novo). `mats` = {'mi', 'aura'} com os objetos (o ensaio nao
+    reabre por caminho os ZZ_* que so existem em memoria)."""
+    mats = mats or {k: EAL.load_asset(n[k]) for k in ("mi", "aura")}
+    w("criando %s" % n["bp"])
+    bp = BEL.create_blueprint_asset_with_parent(n["bp"], unreal.Actor)
+    me = MEF if n["bp"] == BPF else n["bp"] + "." + n["bp"].rsplit("/", 1)[-1] + "_C"
+    t = ale.tipos_base()
+    t["evt"] = BEL.get_object_reference_type(EAL.load_asset(ale.EVT).generated_class())
+    t["lc"] = BEL.get_object_reference_type(unreal.LightComponent.static_class())
+    w("  componente Figura")
+    _, fig = ale.add_comp(bp, unreal.SkeletalMeshComponent, "Figura")
+    fig.set_editor_property("skeletal_mesh_asset", EAL.load_asset(SKM))
+    fig.set_editor_property("animation_mode", unreal.AnimationMode.ANIMATION_SINGLE_NODE)
+    fig.set_editor_property("animation_data", unreal.SingleAnimationPlayData(anim_to_play=EAL.load_asset(ANIM_IDLE), saved_looping=True,
+                                                                               saved_playing=True, saved_position=0.0, saved_play_rate=1.0))
+    nslots = len(EAL.load_asset(SKM).get_editor_property("materials"))
+    fig.set_editor_property("override_materials", [mats["mi"]] * nslots)
+    fig.set_editor_property("overlay_material", mats["aura"])
+    fig.set_collision_profile_name("NoCollision")
+    fig.set_editor_property("cast_shadow", False)
+    fig.set_editor_property("hidden_in_game", True)
+    fig.set_editor_property("visibility_based_anim_tick_option", unreal.VisibilityBasedAnimTickOption.ALWAYS_TICK_POSE)
+    fig.set_editor_property("relative_rotation", unreal.Rotator(0, 0, -90))  # manequim olha para +Y; o ator olha para +X
+    fig.set_editor_property("relative_scale3d", unreal.Vector(*ESCALA_FIGURA))
+    w("  variaveis")
+    ale.cria_vars(bp, VARS_FLUIDO, t, "LUX Vulto")
+    BEL.compile_blueprint(bp)            # sem nos ainda: seguro
+    ale.padroes(bp, [v for v in VARS_FLUIDO if v[3] is not None])
+    w("  funcoes")
+    ale.cria_funcoes(bp, [(nome, []) for nome in FUNCOES_FLUIDO], t)
+    BEL.compile_blueprint(bp)            # sem nos ainda: seguro
+    w("  grafos (nenhum compile ate o fim)")
+    grafo_fluido(bp, me)
+    BEL.compile_blueprint(bp)            # o UNICO compile com nos
+    e = ale.erros_bp(bp)
+    if e or bp.get_editor_property("status") != unreal.BlueprintStatus.BS_UP_TO_DATE:
+        raise Aborta("BP_LuxVultoFluido com erros/avisos (nada salvo): %s | status %s" % (e, bp.get_editor_property("status")))
+    unreal.get_default_object(bp.generated_class()).set_editor_property("VersaoFluido", VERSAO_FLUIDO)
+    BEL.compile_blueprint(bp)            # so o CDO mudou: nenhum no novo
+    w("  BP limpo")
+    return bp
+
+
+def ensure_bp_fluido(n=NOMES_REAIS, mats=None):
+    if n["bp"].startswith("/Game") and EAL.does_asset_exist(n["bp"]):
+        bp = EAL.load_asset(n["bp"])
+        if unreal.get_default_object(bp.generated_class()).get_editor_property("VersaoFluido") != VERSAO_FLUIDO:
+            raise Aborta("%s existe sem VersaoFluido=%d: estado incompleto ou outra versao (feche o editor sem salvar; a mudanca de versao "
+                         "pede nome novo ou apagar o asset)" % (n["bp"], VERSAO_FLUIDO))
+        w("BP_LuxVultoFluido v%d ja existe: mantido" % VERSAO_FLUIDO)
+        return bp, False
+    return cria_bp_fluido(n, mats), True
+
+
+# ------------------------------------------------------------------ Loop 1 v4: figuras no mapa
+def _unreal(v):
+    """tupla (x, y, z) -> Vector; o resto passa direto"""
+    return unreal.Vector(*v) if isinstance(v, tuple) else v
+
+
+def ensure_l1_figuras(bpf, n=NOMES_REAIS):
+    """Uma instancia de BP_LuxVultoFluido por evento do Loop 1: dados de instancia de vc.dados_instancia() (nenhum numero copiado a mao),
+    ActorLuz = a luz propria da figura, animacao TOCANDO (animation_data da instancia), corpo MI_SOMBRA_L1P e aura. Figura de OUTRA classe
+    com o mesmo label (BP_LuxVultoQuadros, BP_LuxVultoCorre) e destruida e recriada (mesmo label, pasta e tag)."""
     eas = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
-    mi = EAL.load_asset(MI_SOMBRA_L1)
+    mi, aura = EAL.load_asset(n["mi"]), EAL.load_asset(n["aura"])
     n_mat = len(EAL.load_asset(SKM).get_editor_property("materials"))
     mud = []
     for cfg in FIGURAS_L1:
+        dados = vc.dados_instancia(cfg["chave"])
         lst = [x for x in ale.atores() if x.get_actor_label() == cfg["label"]]
         if len(lst) > 1:
             raise Aborta("mais de um %s" % cfg["label"])
         a = lst[0] if lst else None
-        if a and not a.get_class().get_name().startswith("BP_LuxVultoQuadros"):
-            w("  %s era %s: trocado por BP_LuxVultoQuadros" % (cfg["label"], a.get_class().get_name()))
+        if a and a.get_class().get_name() != CLASSE_FLUIDO:
+            w("  %s era %s: recriado como %s" % (cfg["label"], a.get_class().get_name(), CLASSE_FLUIDO))
             eas.destroy_actor(a)
             a = None
-        p0, r0 = unreal.Vector(*cfg["posicoes"][0]), unreal.Rotator(0.0, 0.0, cfg["yaws"][0])
+        yaw0 = vc.YAW0_VULTO if cfg["chave"] == "vulto" else dados["YawFixo"]
+        p0, r0 = unreal.Vector(*dados["PontoA"]), unreal.Rotator(0.0, 0.0, yaw0)
         if not a:
-            a = eas.spawn_actor_from_class(bpq.generated_class(), p0, r0)
+            a = eas.spawn_actor_from_class(bpf.generated_class(), p0, r0)
             a.set_actor_label(cfg["label"])
             a.set_folder_path(ale.FOLDER)
             a.set_editor_property("tags", [unreal.Name(ale.TAG)])
             mud.append(cfg["label"])
-        ev = ale.por_label(cfg["evento"])
+        ev, luz = ale.por_label(cfg["evento"]), ale.por_label(cfg["luz"])
         if not ev:
             raise Aborta("%s nao encontrado (rode add_loop_events.py instalar)" % cfg["evento"])
-        quer = {"Evento": ev, "Tempos": [float(x) for x in cfg["tempos"]], "Posicoes": [unreal.Vector(*p) for p in cfg["posicoes"]],
-                "Poses": [float(x) for x in cfg["poses"]], "Yaws": [float(x) for x in cfg["yaws"]], "bEncarar": True,
-                "DuracaoS": float(cfg["duracao"])}
+        if not luz:
+            raise Aborta("%s nao encontrada (a etapa mapa cria as luzes antes das figuras)" % cfg["luz"])
+        quer = {k: _unreal(v) for k, v in dados.items()}
+        quer.update(Evento=ev, ActorLuz=luz)
         for k, v in quer.items():
             if not igual(a.get_editor_property(k), v):
                 a.set_editor_property(k, v)
                 mud.append("%s.%s" % (cfg["label"], k))
-        if (a.get_actor_location() - p0).length() > 0.5 or abs(a.get_actor_rotation().yaw - cfg["yaws"][0]) > 0.1:
+        if (a.get_actor_location() - p0).length() > 0.5 or abs(a.get_actor_rotation().yaw - yaw0) > 0.1:
             a.set_actor_location_and_rotation(p0, r0, False, True)
             mud.append("%s transform" % cfg["label"])
         fig = a.get_components_by_class(unreal.SkeletalMeshComponent)[0]
         anim = EAL.load_asset(cfg["anim"])
-        dados = fig.get_editor_property("animation_data")
-        if (dados.get_editor_property("anim_to_play") != anim or dados.get_editor_property("saved_playing")
-                or abs(dados.get_editor_property("saved_position") - cfg["poses"][0]) > 1e-6):
-            fig.set_editor_property("animation_data", unreal.SingleAnimationPlayData(anim_to_play=anim, saved_looping=True, saved_playing=False,
-                                                                                       saved_position=cfg["poses"][0], saved_play_rate=0.0))
+        play = fig.get_editor_property("animation_data")
+        if (play.get_editor_property("anim_to_play") != anim or not play.get_editor_property("saved_playing")
+                or not play.get_editor_property("saved_looping") or abs(play.get_editor_property("saved_play_rate") - dados["TaxaAnim"]) > 1e-6):
+            fig.set_editor_property("animation_data", unreal.SingleAnimationPlayData(anim_to_play=anim, saved_looping=True, saved_playing=True,
+                                                                                       saved_position=0.0, saved_play_rate=dados["TaxaAnim"]))
             mud.append("%s anim" % cfg["label"])
         mats = list(fig.get_editor_property("override_materials"))
         if len(mats) != n_mat or any(m_ != mi for m_ in mats):
             fig.set_editor_property("override_materials", [mi] * n_mat)
             mud.append("%s material" % cfg["label"])
+        if fig.get_editor_property("overlay_material") != aura:
+            fig.set_editor_property("overlay_material", aura)
+            mud.append("%s aura" % cfg["label"])
     return mud
 
 
-def janelas(ev, ate=12.0):
-    """(apagadas, acesas) em s depois do DisparoT, como o PassoPiscar/FimPiscar do evento: passos pares do PadraoPiscar apagados
-    (no maximo 8, cada um com 0,25 s ou mais); no fim, com bApagarNoFim, apagado ate RestaurarAposS (0 = para sempre)."""
-    pp = [max(0.25, x) for x in list(ev.get_editor_property("PadraoPiscar"))[:8]]
-    esc, ace, t = [], [], 0.0
-    for i, d in enumerate(pp):
-        (esc if i % 2 == 0 else ace).append((t, t + d))
-        t += d
-    if ev.get_editor_property("bApagarNoFim"):
-        r = ev.get_editor_property("RestaurarAposS")
-        esc.append((t, t + r if r > 0 else 1e9))
-        if r > 0:
-            ace.append((t + r, ate))
-    else:
-        ace.append((t, ate))
-    return esc, ace
-
-
-def livre(world, p):
+# ------------------------------------------------------------------ verificar
+def livre(world, p, folga=0.0):
+    """None se a capsula da figura (raio CAPSULA[0] + folga) em p nao encosta em nada no canal Visibility; senao o label de quem bate"""
     r, hh = CAPSULA
     c = unreal.Vector(p.x, p.y, p.z + hh + 4.0)
-    h = unreal.SystemLibrary.capsule_trace_single(world, c, c + unreal.Vector(0, 0, 1.0), r, hh, VIS, False, [],
+    h = unreal.SystemLibrary.capsule_trace_single(world, c, c + unreal.Vector(0, 0, 1.0), r + folga, hh, VIS, False, [],
                                                   unreal.DrawDebugTrace.NONE, True)
     if not h:
         return None
@@ -919,41 +1311,148 @@ def chao(world, p):
     return h.to_tuple()[4].z if h else None
 
 
-def verificar_l1():
+def _nos(bp, nome):
+    """nos do grafo `nome` do BP, ou [] se a funcao nao existe"""
+    if nome not in [str(x) for x in BEL.list_graph_names(bp)]:
+        return []
+    return list(BGE.get_graph_editor_by_name(bp, nome).list_all_nodes())
+
+
+def _tem_no(bp, nome, *pinos):
+    """True se o grafo `nome` tem um no com TODOS estes pinos de entrada (pelo nome interno do pino, que nao e traduzido: o titulo do no
+    muda com o idioma do editor). Lista os pinos em vez de find_input_pin: este loga 'Missing input pin named' (um aviso por no sem o pino;
+    eram 264 por verificar_assets, medido em 05/10)."""
+    quer = set(pinos)
+    return any(quer <= {str(p.get_pin_name()) for p in x.list_input_pins()} for x in _nos(bp, nome))
+
+
+def _entrada_presenca(m):
+    """(Multiply de MP_OPACITY, ScalarParameter Presenca ligado a ele ou None)"""
+    MEL = unreal.MaterialEditingLibrary
+    mul = MEL.get_material_property_input_node(m, unreal.MaterialProperty.MP_OPACITY)
+    if not isinstance(mul, unreal.MaterialExpressionMultiply):
+        return mul, None
+    for x in MEL.get_inputs_for_material_expression(m, mul):
+        if isinstance(x, unreal.MaterialExpressionScalarParameter) and str(x.get_editor_property("parameter_name")) == PRESENCA:
+            return mul, x
+    return mul, None
+
+
+def verificar_assets(n=NOMES_REAIS, obj=None):
+    """Metade do verificar que NAO precisa de mapa (roda no commandlet, so leitura): animacao, materiais (Presenca em CPD, emissivo 0,
+    originais intactos), MI, BP (sem erros, versao, funcoes, SetCustomPrimitiveDataFloat, padroes, Figura) e as regras do cronograma
+    sobre os numeros do desenho (vulto_cronograma.verifica). `obj` = {'bp','sombra','aura','mi'} com os objetos ja carregados (o ensaio,
+    cujos assets so existem em memoria); sem `obj`, abre por caminho. Devolve a lista de falhas."""
     MEL = unreal.MaterialEditingLibrary
     f = []
-    for pth in (ANIM_ANDAR, M_SOMBRA, MI_SOMBRA_L1, BPQ):
+    for pth in (ANIM_ANDAR, M_SOMBRA, M_AURA, MI_SOMBRA_L1):
         if not EAL.does_asset_exist(pth):
             f.append("asset ausente: %s" % pth)
+    for k, pth in n.items():
+        if not (obj[k] if obj else EAL.does_asset_exist(pth)):
+            f.append("asset ausente: %s" % pth)
     if f:
-        w("verificar_l1: FAIL %s" % f)
+        w("verificar_assets: FAIL %s" % f)
         return f
+    pega = lambda k: obj[k] if obj else EAL.load_asset(n[k])
     if not EAL.load_asset(ANIM_ANDAR).get_editor_property("force_root_lock"):
         f.append("A_LuxVultoAndar sem ForceRootLock")
-    m = EAL.load_asset(M_SOMBRA)
-    if (m.get_editor_property("blend_mode") != unreal.BlendMode.BLEND_TRANSLUCENT or
-            m.get_editor_property("shading_model") != unreal.MaterialShadingModel.MSM_UNLIT or not m.get_editor_property("used_with_skeletal_mesh")):
-        f.append("M_LuxVultoSombra nao e unlit translucido para malha esqueletica")
-    for prop in (unreal.MaterialProperty.MP_OPACITY, unreal.MaterialProperty.MP_WORLD_POSITION_OFFSET):
-        if not MEL.get_material_property_input_node(m, prop):
-            f.append("M_LuxVultoSombra sem entrada em %s" % prop)
-    emi = MEL.get_material_property_input_node(m, unreal.MaterialProperty.MP_EMISSIVE_COLOR)
-    cor = emi.get_editor_property("constant") if isinstance(emi, unreal.MaterialExpressionConstant3Vector) else None
-    if not cor or max(cor.r, cor.g, cor.b) > 0.0:
-        f.append("M_LuxVultoSombra com emissivo != 0 (no escuro a exposicao multiplica o emissivo por ~213 e o vulto clareia)")
-    mi = EAL.load_asset(MI_SOMBRA_L1)
-    if mi.get_editor_property("parent") != m:
-        f.append("MI_LuxVultoSombra_L1 nao deriva de M_LuxVultoSombra")
-    for k, v in SOMBRA_L1.items():
+    for orig in (M_SOMBRA, M_AURA):   # v3 intacto: sem Presenca
+        if PRESENCA in [str(x) for x in MEL.get_scalar_parameter_names(EAL.load_asset(orig))]:
+            f.append("%s (original) ganhou a %s: nao pode mudar" % (orig, PRESENCA))
+    sombra, aura = pega("sombra"), pega("aura")
+    for rot, m in (("sombra", sombra), ("aura", aura)):
+        if (m.get_editor_property("blend_mode") != unreal.BlendMode.BLEND_TRANSLUCENT or
+                m.get_editor_property("shading_model") != unreal.MaterialShadingModel.MSM_UNLIT):
+            f.append("%s: nao e unlit translucido" % n[rot])
+        nomes = [str(x) for x in MEL.get_scalar_parameter_names(m)]
+        if nomes.count(PRESENCA) != 1:
+            f.append("%s: %d parametros '%s' (esperado 1)" % (n[rot], nomes.count(PRESENCA), PRESENCA))
+        mul, pres = _entrada_presenca(m)
+        if pres is None:
+            f.append("%s: MP_OPACITY nao e um Multiply com a %s" % (n[rot], PRESENCA))
+        elif not pres.get_editor_property("use_custom_primitive_data") or pres.get_editor_property("primitive_data_index") != CPD_INDICE:
+            f.append("%s: %s sem Custom Primitive Data no indice %d" % (n[rot], PRESENCA, CPD_INDICE))
+        elif abs(pres.get_editor_property("default_value")) > 1e-9:
+            f.append("%s: %s com padrao != 0" % (n[rot], PRESENCA))
+        emi = MEL.get_material_property_input_node(m, unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+        cor = emi.get_editor_property("constant") if isinstance(emi, unreal.MaterialExpressionConstant3Vector) else None
+        if not cor or max(cor.r, cor.g, cor.b) > 0.0:
+            f.append("%s: emissivo != 0 (no escuro a exposicao multiplica o emissivo por ~213 e o vulto clareia)" % n[rot])
+    if not sombra.get_editor_property("used_with_skeletal_mesh"):
+        f.append("%s: sem used_with_skeletal_mesh" % n["sombra"])
+    if not MEL.get_material_property_input_node(sombra, unreal.MaterialProperty.MP_WORLD_POSITION_OFFSET):
+        f.append("%s sem entrada em WORLD_POSITION_OFFSET (o tremor do contorno)" % n["sombra"])
+    for k in SOMBRA_L1:
+        if k not in [str(x) for x in MEL.get_scalar_parameter_names(sombra)]:
+            f.append("%s perdeu o parametro %s" % (n["sombra"], k))
+    mi = pega("mi")
+    if mi.get_editor_property("parent") != sombra:
+        f.append("%s nao deriva de %s" % (n["mi"], n["sombra"]))
+    for k, v in SOMBRA_L1P.items():
         if abs(MEL.get_material_instance_scalar_parameter_value(mi, k) - v) > 1e-4:
-            f.append("MI_LuxVultoSombra_L1.%s != %s" % (k, v))
-    bpq = EAL.load_asset(BPQ)
-    f += ["BP_LuxVultoQuadros: %s" % e for e in ale.erros_bp(bpq)]
-    if unreal.get_default_object(bpq.generated_class()).get_editor_property("VersaoQuadros") != VERSAO_QUADROS:
-        f.append("BP_LuxVultoQuadros sem VersaoQuadros=%d" % VERSAO_QUADROS)
-    for nome in ("Inicializar", "Vigiar", "Quadro", "Esconder"):
-        if nome not in [str(x) for x in BEL.list_graph_names(bpq)] or len(list(BGE.get_graph_editor_by_name(bpq, nome).list_all_nodes())) < 3:
-            f.append("BP_LuxVultoQuadros: funcao %s ausente/vazia" % nome)
+            f.append("%s.%s != %s" % (n["mi"], k, v))
+    bp = pega("bp")
+    f += ["BP_LuxVultoFluido: %s" % e for e in ale.erros_bp(bp)]
+    if bp.get_editor_property("status") != unreal.BlueprintStatus.BS_UP_TO_DATE:
+        f.append("BP_LuxVultoFluido: status %s (esperado UP_TO_DATE)" % bp.get_editor_property("status"))
+    cdo = unreal.get_default_object(bp.generated_class())
+    if cdo.get_editor_property("VersaoFluido") != VERSAO_FLUIDO:
+        f.append("BP_LuxVultoFluido sem VersaoFluido=%d" % VERSAO_FLUIDO)
+    vars_bp = [str(x) for x in BEL.list_member_variable_names(bp)]
+    f += ["BP_LuxVultoFluido: variavel %s ausente" % v[0] for v in VARS_FLUIDO if v[0] not in vars_bp]
+    for nome in FUNCOES_FLUIDO:
+        if len(_nos(bp, nome)) < 3:
+            f.append("BP_LuxVultoFluido: funcao %s ausente/vazia (< 3 nos)" % nome)
+    for nome in ("Amostrar", "Encerrar"):
+        if not _tem_no(bp, nome, "DataIndex", "Value"):
+            f.append("BP_LuxVultoFluido.%s sem SetCustomPrimitiveDataFloat (pinos DataIndex/Value)" % nome)
+    if not _tem_no(bp, "Amostrar", "NewLocation", "NewRotation") or not _tem_no(bp, "Amostrar", "V1", "V2"):
+        f.append("BP_LuxVultoFluido.Amostrar sem a posicao (NewLocation/NewRotation) ou a protecao de camera (Vector_Distance2D: V1/V2)")
+    for k, v in vc.PADROES_BP.items():
+        atual = cdo.get_editor_property(k)
+        if (abs(atual - v) > 1e-6) if isinstance(v, float) else (atual != v):
+            f.append("BP_LuxVultoFluido: padrao %s = %s (esperado %s)" % (k, atual, v))
+    fig = ale.comp_template(bp, "Figura")
+    if fig is None:
+        f.append("BP_LuxVultoFluido sem o componente Figura")
+    else:
+        if not fig.get_editor_property("hidden_in_game"):
+            f.append("Figura visivel no jogo por padrao")
+        if fig.get_collision_profile_name() != "NoCollision" or fig.get_editor_property("cast_shadow"):
+            f.append("Figura com colisao ou sombra")
+        if fig.get_editor_property("overlay_material") != aura:
+            f.append("Figura: aura != %s" % n["aura"])
+        if any(m_ != mi for m_ in fig.get_editor_property("override_materials")):
+            f.append("Figura: corpo != %s em algum slot" % n["mi"])
+        if (fig.get_editor_property("relative_scale3d") - unreal.Vector(*ESCALA_FIGURA)).length() > 1e-3:
+            f.append("Figura: escala != %s" % (ESCALA_FIGURA,))
+        if fig.get_editor_property("visibility_based_anim_tick_option") != unreal.VisibilityBasedAnimTickOption.ALWAYS_TICK_POSE:
+            f.append("Figura: sem ALWAYS_TICK_POSE (o pe nao anda escondida por ocultacao)")
+    for chave in ("vulto", "passos"):   # as regras do cronograma sobre os numeros do desenho
+        f += ["cronograma/%s: %s %s" % (chave, regra, msg) for regra, msg in vc.verifica(vc.dados_novo(chave))]
+    w("verificar_assets:", ("FAIL %s" % f) if f else "PASS")
+    return f
+
+
+def _vals(a, chaves):
+    """valores de instancia do ator `a` no formato de vc.dados_instancia (Vector -> tupla, array -> lista)"""
+    out = {}
+    for k in chaves:
+        v = a.get_editor_property(k)
+        if isinstance(v, unreal.Vector):
+            v = (v.x, v.y, v.z)
+        elif not isinstance(v, (bool, int, float, str)):
+            v = list(v)
+        out[k] = v
+    return out
+
+
+def verificar_mapa(n=NOMES_REAIS):
+    """Metade do verificar que PRECISA do mapa (editor, fora do PIE): luzes do Loop 1, as duas figuras (classe exata, evento, luz, dados de
+    instancia == vulto_cronograma, regras do cronograma sobre os VALORES REAIS dos atores, componente), e a varredura de capsula, chao e
+    folga a cada <= 10 cm em TODO o percurso. Devolve a lista de falhas."""
+    f = []
     for lab, cfg in L1_LUZES.items():
         luz = [x for x in ale.atores() if x.get_actor_label() == lab]
         if len(luz) != 1:
@@ -967,102 +1466,151 @@ def verificar_l1():
         if abs(c.get_editor_property("intensity") - cfg["cd"]) > 1e-4 or (luz[0].get_actor_location() - unreal.Vector(*cfg["pos"])).length() > 0.5:
             f.append("%s diferente de L1_LUZES" % lab)
     world = unreal.get_editor_subsystem(unreal.UnrealEditorSubsystem).get_editor_world()
+    mi, aura = EAL.load_asset(n["mi"]), EAL.load_asset(n["aura"])
     for cfg in FIGURAS_L1:
-        lab = cfg["label"]
+        lab, chave = cfg["label"], cfg["chave"]
+        dados = vc.dados_instancia(chave)
         lst = [x for x in ale.atores() if x.get_actor_label() == lab]
         if len(lst) != 1:
             f.append("esperava 1 %s (%d)" % (lab, len(lst)))
             continue
         a = lst[0]
-        if not a.get_class().get_name().startswith("BP_LuxVultoQuadros"):
-            f.append("%s e %s (esperado BP_LuxVultoQuadros)" % (lab, a.get_class().get_name()))
+        if a.get_class().get_name() != CLASSE_FLUIDO:      # igualdade exata: o startswith do v3 aceitaria o BP_LuxVultoQuadros
+            f.append("%s e %s (esperado %s)" % (lab, a.get_class().get_name(), CLASSE_FLUIDO))
             continue
-        ev = a.get_editor_property("Evento")
+        ev, luz = a.get_editor_property("Evento"), a.get_editor_property("ActorLuz")
         if not ev or ev.get_actor_label() != cfg["evento"]:
             f.append("%s: Evento nao aponta para %s" % (lab, cfg["evento"]))
             continue
+        if not luz or luz.get_actor_label() != cfg["luz"]:
+            f.append("%s: ActorLuz != %s" % (lab, cfg["luz"]))
+        elif ale.TAG_CORREDOR not in [str(t) for t in luz.tags]:
+            f.append("%s: a luz %s nao tem a tag %s (o evento nao a apagaria)" % (lab, cfg["luz"], ale.TAG_CORREDOR))
         if ev.get_editor_property("bAparicao"):
             f.append("%s ainda com bAparicao (a silhueta estatica branca voltaria)" % cfg["evento"])
-        tempos, pos = list(a.get_editor_property("Tempos")), list(a.get_editor_property("Posicoes"))
-        poses, yaws = list(a.get_editor_property("Poses")), list(a.get_editor_property("Yaws"))
-        dur = a.get_editor_property("DuracaoS")
-        if not (len(tempos) == len(pos) == len(poses) == len(yaws) == len(cfg["tempos"])):
-            f.append("%s: Tempos/Posicoes/Poses/Yaws com tamanhos diferentes" % lab)
-            continue
-        if not (igual(tempos, [float(x) for x in cfg["tempos"]]) and igual(pos, [unreal.Vector(*p) for p in cfg["posicoes"]])
-                and igual(poses, [float(x) for x in cfg["poses"]]) and abs(dur - cfg["duracao"]) < 1e-6):
-            f.append("%s: quadros diferentes de FIGURAS_L1" % lab)
-        if tempos[0] != 0.0 or tempos != sorted(tempos) or dur <= tempos[-1]:
-            f.append("%s: quadros fora de ordem, sem o quadro 0 ou sumindo antes do ultimo" % lab)
-        # sincronia com o piscar: entra, muda de lugar e some no escuro (menos os quadros no_claro, de proposito)
-        esc, ace = janelas(ev)
-        # o quadro 0 nasce junto com o 1o apagao (o Executar chama o PassoPiscar no mesmo quadro); os outros e o sumico precisam
-        # de MARGEM_INICIO depois do inicio do apagao (o piscar atrasa) e de MARGEM_ESCURO antes do fim
-        no_escuro = lambda t, ini: any(a0 + ini - 1e-6 <= t and t + MARGEM_ESCURO <= b0 for a0, b0 in esc)
-        for i, t in enumerate(tempos):
-            if i not in cfg["no_claro"] and not no_escuro(t, 0.0 if t == 0.0 else MARGEM_INICIO):
-                f.append("%s: quadro %d (%.2f s) fora de um apagao do %s (com folga)" % (lab, i, t, cfg["evento"]))
-        if not no_escuro(dur, MARGEM_INICIO):
-            f.append("%s: some em %.2f s, fora de um apagao (com folga)" % (lab, dur))
-        visto = sum(max(0.0, min(b0, dur) - max(a0, tempos[0])) for a0, b0 in ace)
-        if visto < 0.5:
-            f.append("%s: so %.2f s visivel com a luz acesa (minimo 0,5)" % (lab, visto))
-        for i, p in enumerate(pos):
-            b_ = livre(world, p)
-            if b_:
-                f.append("%s: quadro %d em (%.0f, %.0f) encosta em %s" % (lab, i, p.x, p.y, b_))
-            z = chao(world, p)
-            if z is None or abs(z - p.z) > 5.0:
-                f.append("%s: quadro %d fora do chao (chao em z %s)" % (lab, i, z))
+        if unreal.get_default_object(a.get_class()).get_editor_property("VersaoFluido") != VERSAO_FLUIDO:
+            f.append("%s: classe sem VersaoFluido=%d" % (lab, VERSAO_FLUIDO))
+        # dados de instancia == cronograma (fonte unica)
+        for k, v in dados.items():
+            if not igual(a.get_editor_property(k), _unreal(v)):
+                f.append("%s.%s = %s (esperado %s)" % (lab, k, a.get_editor_property(k), v))
+        # regras do cronograma sobre os valores REAIS dos atores (luz, visibilidade, posicao, animacao, som)
         fig = a.get_components_by_class(unreal.SkeletalMeshComponent)[0]
+        play = fig.get_editor_property("animation_data")
+        figv = _vals(a, dados.keys())
+        figv.update(saved_playing=bool(play.get_editor_property("saved_playing")), saved_play_rate=play.get_editor_property("saved_play_rate"))
+        ps = [c for c in ev.get_components_by_class(unreal.SceneComponent) if c.get_name().startswith("PontoSom")][0].get_world_location()
+        evtv = _vals(ev, ("PadraoPiscar", "bApagarNoFim", "RestaurarAposS", "Repeticoes", "IntervaloRepS", "DeslocPorRep"))
+        evtv["PontoSom"] = (ps.x, ps.y, ps.z)
+        f += ["%s: %s %s" % (lab, regra, msg) for regra, msg in vc.verifica(vc.dados_de_instancia(chave, figv, evtv))]
+        # percurso: capsula livre, chao (+-5 cm) e folga de FOLGA_PAREDE cm a cada <= 10 cm, em TODA a reta D / reposicao V0-V1
+        for i, p in enumerate(vc.pontos_percurso(chave)):
+            v = unreal.Vector(*p)
+            b_ = livre(world, v)
+            if b_:
+                f.append("%s: ponto %d do percurso (%.0f, %.0f) encosta em %s" % (lab, i, p[0], p[1], b_))
+            else:
+                b_ = livre(world, v, FOLGA_PAREDE)
+                if b_:
+                    f.append("%s: ponto %d do percurso (%.0f, %.0f) a menos de %.0f cm de %s" % (lab, i, p[0], p[1], FOLGA_PAREDE, b_))
+            z = chao(world, v)
+            if z is None or abs(z - p[2]) > 5.0:
+                f.append("%s: ponto %d do percurso fora do chao (chao em z %s)" % (lab, i, z))
+        # componente
         if not fig.get_editor_property("hidden_in_game"):
             f.append("%s: Figura visivel no jogo por padrao" % lab)
         if fig.get_collision_profile_name() != "NoCollision" or fig.get_editor_property("cast_shadow"):
             f.append("%s: Figura com colisao ou sombra" % lab)
-        if not fig.get_editor_property("overlay_material"):
-            f.append("%s: Figura sem aura" % lab)
+        if fig.get_editor_property("overlay_material") != aura:
+            f.append("%s: aura != %s" % (lab, n["aura"]))
         if any(m_ != mi for m_ in fig.get_editor_property("override_materials")):
-            f.append("%s: material do corpo != MI_LuxVultoSombra_L1" % lab)
-        dados = fig.get_editor_property("animation_data")
-        if dados.get_editor_property("anim_to_play") != EAL.load_asset(cfg["anim"]) or dados.get_editor_property("saved_playing"):
-            f.append("%s: animacao != %s congelada" % (lab, cfg["anim"]))
+            f.append("%s: material do corpo != %s" % (lab, n["mi"]))
         if (fig.get_editor_property("relative_scale3d") - unreal.Vector(*ESCALA_FIGURA)).length() > 1e-3:
             f.append("%s: escala da Figura != %s" % (lab, ESCALA_FIGURA))
-        if cfg["evento"] == "EV_L1_PassosPesados":
-            ps = [c for c in ev.get_components_by_class(unreal.SceneComponent) if c.get_name().startswith("PontoSom")][0].get_world_location()
-            d = ev.get_editor_property("DeslocPorRep")
-            passo = pos[1] - pos[0] if len(pos) > 1 else unreal.Vector()
-            if ((unreal.Vector(ps.x, ps.y, 0) - unreal.Vector(pos[0].x, pos[0].y, 0)).length() > 1.0 or
-                    (unreal.Vector(d.x, d.y, 0) - unreal.Vector(passo.x, passo.y, 0)).length() > 1.0):
-                f.append("%s: os passos nao soam onde a figura esta (PontoSom/DeslocPorRep do evento)" % lab)
+        if play.get_editor_property("anim_to_play") != EAL.load_asset(cfg["anim"]) or not play.get_editor_property("saved_looping"):
+            f.append("%s: animacao != %s em loop" % (lab, cfg["anim"]))
+        if cfg["anim"] == ANIM_ANDAR and not EAL.load_asset(ANIM_ANDAR).get_editor_property("force_root_lock"):
+            f.append("%s: A_LuxVultoAndar sem ForceRootLock (anda na propria raiz e 'respawna')" % lab)
     lf = [x for x in ale.atores() if x.get_actor_label() == LUZ_FUNDO]
     if lf and sorted(str(t) for t in lf[0].tags) != sorted([ale.TAG, "LOOP2_ON", "LOOP3_OFF"]):
         f.append("%s (loop 2) teve as tags alteradas" % LUZ_FUNDO)
+    w("verificar_mapa:", ("FAIL %s" % f) if f else "PASS")
+    return f
+
+
+def verificar_l1():
+    f = verificar_assets() + verificar_mapa()
     w("verificar_l1:", ("FAIL %s" % f) if f else "PASS")
     return f
 
 
-PROPRIOS_L1 = (ANIM_ANDAR, M_SOMBRA, MI_SOMBRA_L1, BPQ)
+# ------------------------------------------------------------------ instalar / desfazer (Loop 1 v4)
+def _sujos():
+    """pacotes sujos; [] se o commandlet nao expuser os de mapa"""
+    try:
+        return ale.sujos()
+    except Exception:
+        return sorted(p.get_name() for p in list(unreal.EditorLoadingAndSavingUtils.get_dirty_content_packages()))
 
 
-def instalar_l1():
+def instalar_l1_assets(n=NOMES_REAIS, salvar=None):
+    """ETAPA 'assets' (COMMANDLET, editor grafico FECHADO: P21 derruba o editor se ja houve compile com o mesmo operador; sem mapa e sem
+    LevelEditorSubsystem): confere que os assets do v3 batem (nao muda nenhum), cria o que falta dos 4 novos, roda verificar_assets e salva
+    SO os 4 (os valores de `n`). Carregar o BP_LuxLoopEvent suja um pacote alheio no commandlet (AS_Flashlight_Inspection_Montage): nao e
+    salvo. `n`/`salvar` so mudam num ensaio da propria etapa com outros nomes e um `salvar` que nao grava."""
+    salvar = salvar or (lambda o: EAL.save_loaded_asset(o, False))
+    if not os.environ.get("LUX_CMDLET"):
+        raise Aborta("a etapa 'assets' gera Blueprint com nos: rode no COMMANDLET (lux_cmdlet_l1.py assets), nunca no editor grafico (P21)")
+    if _sujos():
+        raise Aborta("ha pacotes nao salvos antes de comecar: %s" % _sujos())
+    v3 = ensure_l1_assets()
+    if v3:
+        raise Aborta("os assets do v3 mudariam (%s): estado inesperado, nada salvo" % [x.get_path_name() for x in v3])
+    mats = cria_material_fluido(n)
+    bp, criou = ensure_bp_fluido(n, mats)
+    obj = dict(mats, bp=bp)
+    f = verificar_assets(n, obj)
+    if f:
+        raise Aborta("verificar_assets FAIL (nada salvo): %s" % f)
+    sujos = _sujos()
+    for k in ("sombra", "aura", "mi", "bp"):
+        if n[k] in sujos or (k == "bp" and criou):          # o BP recem-criado e salvo mesmo que o pacote nao conste como sujo
+            if not salvar(obj[k]):
+                raise Aborta("o save falhou em %s" % n[k])
+            w("salvo", n[k])
+    w("pacotes ainda sujos, NAO salvos (alheios ao Loop 1):", [p for p in _sujos() if p not in n.values()] or "nenhum")
+    w("assets prontos: %s | proximo passo: instalar_l1 mapa (editor grafico, fora do PIE)" % ", ".join(n.values()))
+
+
+def ensaio_l1_assets():
+    """ENSAIO em memoria (COMMANDLET, nada salvo): cria o conjunto com NOMES_ENSAIO (BP em /Temp/LuxProbe, materiais ZZ_* no DIR) e roda
+    verificar_assets nele. Prova que o gerador compila limpo antes de gravar os 4 assets reais."""
+    if not os.environ.get("LUX_CMDLET"):
+        raise Aborta("o ensaio gera Blueprint com nos: rode no COMMANDLET (lux_cmdlet_l1.py ensaio)")
+    mats = cria_material_fluido(NOMES_ENSAIO)
+    bp, _ = ensure_bp_fluido(NOMES_ENSAIO, mats)
+    f = verificar_assets(NOMES_ENSAIO, dict(mats, bp=bp))
+    w("ensaio:", ("FAIL %s" % f) if f else "PASS", "| pacotes sujos em memoria (nada foi salvo):", _sujos())
+    return f
+
+
+def instalar_l1_mapa():
+    """ETAPA 'mapa' (EDITOR grafico, fora do PIE; o Mapa_B e LFS: avise antes de salvar): confere os 4 assets (verificar_assets), poe as
+    luzes do Loop 1 e as duas figuras BP_LuxVultoFluido (destroi e recria as do v3 com o mesmo label), roda o verificar completo e
+    SO ENTAO salva o Mapa_B."""
     if unreal.get_editor_subsystem(unreal.LevelEditorSubsystem).is_in_play_in_editor():
         raise Aborta("feche o PIE")
-    if ale.sujos():
-        # retomada: so os proprios assets do Loop 1 podem estar sujos (execucao anterior abortada antes de salvar)
-        if not set(ale.sujos()) <= set(PROPRIOS_L1) | {"/Game/Masion/Mapa_B"}:
-            raise Aborta("ha pacotes nao salvos antes de comecar: %s" % ale.sujos())
-        w("retomando com pacotes proprios sujos:", ale.sujos())
-    novos = ensure_l1_assets()
-    bpq, criou = ensure_bp_quadros()
-    mud = ensure_l1_luz() + ensure_l1_figuras(bpq)
-    w("mudou (loop 1):", mud or "nada")
-    f = verificar_l1()
+    if not set(ale.sujos()) <= {"/Game/Masion/Mapa_B"}:
+        raise Aborta("ha pacotes nao salvos antes de comecar: %s" % ale.sujos())
+    f = verificar_assets()
     if f:
-        raise Aborta("verificar_l1 FAIL (nada salvo): %s" % f)
-    for x in novos + [EAL.load_asset(p) for p in PROPRIOS_L1 if p in ale.sujos()]:
-        if x.get_outermost().get_name() in ale.sujos():
-            w("salvo", x.get_path_name(), EAL.save_loaded_asset(x, False))
+        raise Aborta("verificar_assets FAIL (rode a etapa 'assets' no commandlet): %s" % f)
+    bpf = EAL.load_asset(BPF)
+    mud = ensure_l1_luz() + ensure_l1_figuras(bpf)
+    w("mudou (loop 1):", mud or "nada")
+    f = verificar_mapa()
+    if f:
+        raise Aborta("verificar_mapa FAIL (nada salvo): %s" % f)
     U = unreal.EditorLoadingAndSavingUtils
     mapa = [p for p in U.get_dirty_map_packages() if p.get_name() == "/Game/Masion/Mapa_B"]
     if mapa:
@@ -1073,25 +1621,34 @@ def instalar_l1():
 
 
 def desfazer_l1():
-    """Tira so o que e do Loop 1 (figuras, de qualquer versao, e a luz). Os assets (BP, materiais, anim) ficam; o loop 2 nao e tocado."""
+    """Tira so o que e do Loop 1 do MAPA (figuras, de qualquer versao, e as luzes). Os assets NAO sao apagados: os 4 novos (PROPRIOS_L1) sao
+    arquivos sem rastreio (apague-os no Content Browser ou do disco) e os do v3 (PROPRIOS_V3) nunca saem. Para voltar ao v3 inteiro:
+    git checkout -- do Mapa_B."""
     eas = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
     alvo = [c["label"] for c in FIGURAS_L1] + list(L1_LUZES)
     for a in [a for a in ale.atores() if a.get_actor_label() in alvo]:
         eas.destroy_actor(a)
     U = unreal.EditorLoadingAndSavingUtils
     U.save_packages([p for p in U.get_dirty_map_packages() if p.get_name() == "/Game/Masion/Mapa_B"], True)
-    w("Loop 1 removido do mapa (%s); assets ficam em %s" % (", ".join(alvo), DIR))
+    w("Loop 1 removido do mapa (%s); assets novos que ficam em %s: %s; os do v3 (%s) nao sao tocados" % (
+        ", ".join(alvo), DIR, ", ".join(p.rsplit("/", 1)[-1] for p in PROPRIOS_L1), ", ".join(p.rsplit("/", 1)[-1] for p in PROPRIOS_V3)))
 
 
 def main():
     os.makedirs(os.path.dirname(LOG), exist_ok=True)
     open(LOG, "w", encoding="utf-8").close()
-    modos = ("instalar", "verificar", "desfazer", "instalar_l1", "verificar_l1", "desfazer_l1")
+    modos = ("instalar", "verificar", "desfazer", "instalar_l1", "verificar_l1", "verificar_assets", "verificar_mapa", "desfazer_l1")
     modo = next((x for x in sys.argv[1:] if x in modos), "verificar")
-    w("modo:", modo)
+    etapa = next((x for x in sys.argv[1:] if x in ("assets", "mapa")), None)
+    w("modo:", modo, etapa or "")
     try:
-        {"instalar": instalar, "verificar": verificar, "desfazer": desfazer, "instalar_l1": instalar_l1,
-         "verificar_l1": verificar_l1, "desfazer_l1": desfazer_l1}[modo]()
+        if modo == "instalar_l1":
+            if etapa not in ("assets", "mapa"):
+                raise Aborta("instalar_l1 pede a etapa: 'assets' (commandlet, lux_cmdlet_l1.py) ou 'mapa' (editor)")
+            {"assets": instalar_l1_assets, "mapa": instalar_l1_mapa}[etapa]()
+        else:
+            {"instalar": instalar, "verificar": verificar, "desfazer": desfazer, "verificar_l1": verificar_l1,
+             "verificar_assets": verificar_assets, "verificar_mapa": verificar_mapa, "desfazer_l1": desfazer_l1}[modo]()
     except Aborta as ex:
         w("ABORTADO:", ex, "| sujos:", ale.sujos())
     except Exception:

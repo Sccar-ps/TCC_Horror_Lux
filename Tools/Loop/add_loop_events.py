@@ -13,6 +13,8 @@
 # 30/09 v3 (polimento do Loop 1): os pontos do vulto (L1_VAO, L1_PASSOS) moram aqui e valem para o som, o olhar e as figuras
 #   (BP_LuxVultoQuadros, do add_vulto_corre.py). O vulto do vao ganha 3 estalos (o do meio no tranco) e os passos soam onde a
 #   figura esta em cada passo. O verificar reprova som fora do caminho do vulto.
+# 05/10 v4 (vulto fluido): so DADOS do pacote_loop1 (PadraoPiscar do vulto, 9 passos a cada 0,65 s) e as regras de som do verificar
+#   (vulto_cronograma.verifica_som); o BP_LuxLoopEvent, o piscar (PassoPiscar/FimPiscar) e o hub nao mudam.
 import importlib, json, math, os, sys, traceback, unreal
 
 INSTALAR_SUSTOS = True        # etapa 4 (27/09): rodar instalar de novo so cria o que falta
@@ -436,13 +438,12 @@ LUZES_POR_TAG = {TAG_LUZES: ["LUX_Luz_Sala_Candelabro", "LUX_Luz_Sala_Candelabro
                  TAG_CORREDOR: ["LUX_Luz_Corredor_Arandela3", "LUX_Luz_Corredor_Arandela5"]}
 # 30/09: unicos eventos permitidos no loop 1; qualquer outro no loop 1 reprova o verificar (o loop 0 nao tem evento)
 LOOP1_EVENTOS = ("EV_L1_VultoParado", "EV_L1_Macaneta", "EV_L1_PassosPesados")
-# 30/09 v3: pontos do vulto do Loop 1 (fonte unica: eventos aqui, figuras no add_vulto_corre.py). Caminho conferido no editor com
-# varredura de capsula (raio 28, altura 176, canal Visibility): livre. Chao em z 0.
-L1_VAO = [(-3250.0, -700.0), (-3275.0, -665.0)]   # vulto do vao contra a LUX_L1_LuzFundo; no estalo do meio, tranco de 25 cm
-#   para o eixo do corredor e 35 cm na direcao de quem vem (a 8-10 m le como "ele se mexeu?")
-L1_PASSOS = [(-3250.0, -740.0), (-3206.2, -706.7), (-3162.4, -673.4), (-3118.6, -640.2)]   # sai do vao rumo ao centro da S1
-#   (-3000, -550), 55 cm por passo (passada de contato do anim_Walk_Fwd_Loop_L: 56,7 cm). P0-P2 sao vistos nas janelas acesas;
-#   P3 e so o som do 4o passo, no escuro final
+# 30/09 v3 / 05/10 v4: pontos das figuras do Loop 1 (eventos aqui, figuras no add_vulto_corre.py; os NUMEROS moram em
+# vulto_cronograma.py, cujo __main__ confere estes dois pares e o pacote_loop1() abaixo por leitura deste arquivo). Chao em z 0.
+L1_VAO = [(-3250.0, -700.0), (-3275.0, -665.0)]   # vulto do vao contra a LUX_L1_LuzFundo; V0 -> V1 e a reposicao de 43 cm (25 cm para o
+#   eixo do corredor e 35 cm na direcao de quem vem), feita com a figura INVISIVEL (presenca 0) em 1,10-1,28 s, dentro do apagao do meio
+L1_PASSOS = [(-3250.0, -740.0), (-2800.0, -725.0)]   # reta D dos passos: P0 (PontoSom, saida do vao) -> FIM (dentro da sala), 450,25 cm a
+#   83 cm/s; a figura ANDA (A_LuxVultoAndar tocando, taxa 0,718) e cruza o limiar da sala (x -3000) em ~3,0 s, no escuro
 CADEIRA_JANTAR = "Sala_Jantar_Cabeceira2"   # sem luz baked no Mapa_B (sem BuiltData, todas as luzes Movable): vira Movable direto
 CADEIRA_JANTAR_ALVO = (-2250.0, -1750.0)    # gira para ficar de frente para quem vai para a porta pelo lado leste
 # rotas andaveis (grade 25 cm + capsula r30), Chegada -> porta do loop
@@ -1693,34 +1694,39 @@ def pacote_loop1(g):
       1,3 s); o som sai do vao do escritorio e anda com a figura (DeslocPorRep = (PontoB - PontoA) x 1,3 / 4,1); a figura so e
       vista nas janelas acesas, cada vez mais perto, e some no escuro final (4o passo em 3,9 s, figura some em 4,1 s, luz volta
       em 6,4 s). PadraoPiscar total 3,9 s (regra do verificar: <= 4 s).
-    v3 (30/09, polimento): as figuras viram BP_LuxVultoQuadros (add_vulto_corre.py instalar_l1): quadros ancorados no DisparoT
-    do evento, cada um com posicao, pose congelada e rosto virado para o jogador.
-    - Vulto: 3 estalos (0; 0,925; 1,85 s). O do meio cai na janela acesa e marca o tranco da figura (L1_VAO[1]): ela se mexe
-      sem andar, a luz nao pisca. O 3o estalo e o 2o apagao, onde ela some.
-    - Passos: a figura nao desliza mais; a cada passo (inicio de cada apagao) ela salta 55 cm (L1_PASSOS) e reaparece congelada
-      no meio da passada, cada vez mais perto. O som de cada passo sai do ponto da figura (PontoSom = P0, DeslocPorRep = P1 - P0);
-      o 4o passo soa em P3, no escuro final, e quando a luz volta nao ha ninguem."""
+    v3 (30/09, polimento): as figuras viraram BP_LuxVultoQuadros (quadros ancorados no DisparoT, pose congelada, salto de 55 cm).
+    v4 (05/10, "o vulto pipoca, fora do compasso"): as figuras viram BP_LuxVultoFluido (add_vulto_corre.py instalar_l1): a presenca
+    (opacidade) segue a intensidade REAL da luz propria da figura, a figura anda de verdade e nunca aparece/some em degrau. Os numeros
+    deste pacote moram em vulto_cronograma.py (cujo __main__ os confere por leitura deste arquivo); as regras de som, no verificar.
+    - Vulto: PadraoPiscar [0,25; 0,8; 0,25; 0,8; 0,3] = 3 apagoes (0 / 1,05 / 2,10 s) e 2 janelas acesas de 0,8 s. 3 estalos de chiado,
+      um em cada QUEDA de luz (IntervaloRepS = 0,8 + 0,25 = 1,05 s). A reposicao V0 -> V1 (43 cm) acontece com a figura invisivel, no
+      apagao do meio (1,10-1,28 s); DeslocPorRep leva o som junto (V0 + k x (-12,5; 17,5)).
+    - Passos: 9 passos a cada 0,65 s no lugar do pe (PontoSom = P0, DeslocPorRep = 54 cm na direcao da reta D); os contatos pares
+      coincidem com o inicio de cada apagao (0 / 1,3 / 2,6 / 3,9 s). A figura anda de P0 ate dentro da sala a 83 cm/s e a luz so volta
+      em 6,4 s sem ninguem."""
     gl, gx = g["gatilho"]
     mw = g["meia_largura"]
     d7 = g["BP_BaseDoor7"].get_actor_location()
     yl = gl.y - gx.y - 25.0            # logo depois do gatilho: a porta do quarto ja fechou
     yv = yl - 270.0                    # caixa do vulto: yl .. yv
     yb = yv - 10.0 - 690.0             # caixa da macaneta: yv-10 .. yb (ate y ~ -400); nao sobrepoe a do vulto nem a S1
-    (vx, vy), (p0x, p0y), (p1x, p1y) = L1_VAO[0], L1_PASSOS[0], L1_PASSOS[1]
+    (vx, vy), (p0x, p0y) = L1_VAO[0], L1_PASSOS[0]
     return [
         # vulto no vao do escritorio (alvo do olhar = peito da figura LUX_Vulto_L1_Porta); aparicao estatica DESLIGADA
         ev("EV_L1_VultoParado", 41, 1, [1], ((-3275.0, (yl + yv) / 2, 110.0), (mw, (yl - yv) / 2, 110.0)), (vx, vy, 120.0),
            aparicao=(vx, vy), bAparicao=False, bSoQuandoOlhando=True, CosOlhar=0.90, bExigirLinhaVisao=True, JanelaS=30.0,
-           TagLuzes=TAG_CORREDOR, PadraoPiscar=[0.25, 1.6, 0.3], IntensidadeApagada=0.04, bApagarNoFim=False, bSomNoFimDoPiscar=False,
-           Som="FLICKER", Repeticoes=3, IntervaloRepS=0.925, Pitch=0.85, Volume=1.0, DuracaoMaxS=1.2, FadeS=0.3, Atenuacao="SA_SUSTO"),
+           TagLuzes=TAG_CORREDOR, PadraoPiscar=[0.25, 0.8, 0.25, 0.8, 0.3], IntensidadeApagada=0.04, bApagarNoFim=False, bSomNoFimDoPiscar=False,
+           Som="FLICKER", Repeticoes=3, IntervaloRepS=1.05, DeslocPorRep=(-12.5, 17.5, 0.0), Pitch=0.85, Volume=1.0, DuracaoMaxS=1.2,
+           FadeS=0.3, Atenuacao="SA_SUSTO"),
         # macaneta do quarto: 2 giros lentos e graves, so com o jogador de costas para a porta
         ev("EV_L1_Macaneta", 42, 0, [1], ((-3275.0, ((yv - 10.0) + yb) / 2, 110.0), (mw, ((yv - 10.0) - yb) / 2, 110.0)),
            (d7.x, d7.y + 40.0, 105.0), Som="TRY", Repeticoes=2, IntervaloRepS=1.6, Pitch=0.6, Volume=2.0, DuracaoMaxS=1.5, FadeS=0.6,
            Atenuacao="SA_SUSTO", bSoQuandoDeCostas=True, CosCostas=0.0, JanelaS=25.0, DistMaxJogador=1300.0),
-        # passos pesados e lentos saindo do vao do escritorio atras do jogador (de costas): 4 passos a cada 1,3 s; cada passo soa
-        # onde a figura LUX_Vulto_L1_Passos esta (L1_PASSOS); luzes do corredor + LUX_L1_LuzFundo em sincronia
-        ev("EV_L1_PassosPesados", 43, 1, [1], fx("S1"), (p0x, p0y, 60.0), Som="VULTO_PASSO", Repeticoes=4, IntervaloRepS=1.3,
-           Pitch=0.7, Volume=1.5, DeslocPorRep=(round(p1x - p0x, 1), round(p1y - p0y, 1), 0.0), DuracaoMaxS=0.8, FadeS=0.5,
+        # passos pesados saindo do vao do escritorio atras do jogador (de costas): 9 passos a cada 0,65 s (o pe de apoio da animacao
+        # a taxa 0,718); cada passo soa onde o pe da figura LUX_Vulto_L1_Passos esta (reta D, L1_PASSOS) e os pares coincidem com o
+        # inicio de cada apagao; luzes do corredor + LUX_L1_LuzPassos em sincronia
+        ev("EV_L1_PassosPesados", 43, 1, [1], fx("S1"), (p0x, p0y, 60.0), Som="VULTO_PASSO", Repeticoes=9, IntervaloRepS=0.65,
+           Pitch=0.7, Volume=1.5, DeslocPorRep=(54.0, 1.8, 0.0), DuracaoMaxS=0.8, FadeS=0.5,
            Atenuacao="SA_SUSTO", EscalaTremor=0.5,
            TagLuzes=TAG_CORREDOR, PadraoPiscar=[0.5, 0.8, 0.5, 0.8, 0.5, 0.8], IntensidadeApagada=0.04, bApagarNoFim=True,
            bSomNoFimDoPiscar=False, RestaurarAposS=2.5, bSoQuandoDeCostas=True, CosCostas=-0.2, JanelaS=25.0, DistMaxJogador=1100.0)]
@@ -2091,6 +2097,32 @@ def simular(evs, g, v=150.0, varre=False, rota=None):
     return res
 
 
+def regras_som_l1(e):
+    """05/10 v4: som e olhar presos ao caminho da figura do Loop 1 (EV_L1_VultoParado e EV_L1_PassosPesados; `e` = item de eventos_mapa()).
+    As regras R-SOM (PontoSom no inicio da figura; cada passo/estalo no lugar do pe a 1 cm (Passos) ou 25 cm (Vulto); IntervaloRepS =
+    0,4665/TAXA +-5 ms (Passos) ou PadraoPiscar[1]+[2] (Vulto); cada estalo numa queda nominal da luz) vivem em
+    vulto_cronograma.verifica_som (fonte unica dos numeros). Aqui: ler o evento, o ator sem rotacao (DeslocPorRep e local) e a luz apagada
+    abaixo de 0,2 (o BP_LuxVultoFluido so zera a presenca com a luz real abaixo de 0,2). Devolve a lista de falhas."""
+    chave = {"EV_L1_VultoParado": "vulto", "EV_L1_PassosPesados": "passos"}.get(e["label"])
+    if not chave:
+        return []
+    import vulto_cronograma as vc
+    importlib.reload(vc)
+    a = e["a"]
+    d = a.get_editor_property("DeslocPorRep")
+    evt = dict(PadraoPiscar=list(e["PadraoPiscar"]), bApagarNoFim=a.get_editor_property("bApagarNoFim"),
+               RestaurarAposS=a.get_editor_property("RestaurarAposS"), Repeticoes=e["Repeticoes"], IntervaloRepS=e["IntervaloRepS"],
+               DeslocPorRep=(d.x, d.y, d.z), PontoSom=(e["som"].x, e["som"].y, e["som"].z))
+    out = ["%s: %s %s" % (e["label"], regra, msg) for regra, msg in vc.verifica_som(chave, evt)]
+    yaw = a.get_actor_rotation().yaw
+    if abs(yaw) > 0.01:
+        out.append("%s: ator girado (yaw %.2f): DeslocPorRep e local e o som sairia fora do caminho" % (e["label"], yaw))
+    ap = a.get_editor_property("IntensidadeApagada")
+    if ap >= 0.2 - 1e-9:
+        out.append("%s: IntensidadeApagada %.2f >= 0,2 (a presenca da figura so zera com a luz real abaixo de 0,2)" % (e["label"], ap))
+    return out
+
+
 def verificar():
     falhas, avisos = [], []
     if not (EAL.does_asset_exist(HUB) and EAL.does_asset_exist(EVT)):
@@ -2177,12 +2209,7 @@ def verificar():
             falhas.append("%s: piscar fora da regra (passo>=0.25, <=8 passos, <=4 s)" % e["label"])
         if e["AlvoGirar"] and "MOVABLE" not in str(e["AlvoGirar"].get_editor_property("root_component").get_editor_property("mobility")):
             falhas.append("%s: %s nao e Movable" % (e["label"], e["AlvoGirar"].get_actor_label()))
-        # 30/09 v3: som e olhar presos ao caminho do vulto do Loop 1 (as figuras leem os mesmos pontos)
-        if e["label"] == "EV_L1_PassosPesados":
-            d = e["a"].get_editor_property("DeslocPorRep")
-            (p0x, p0y), (p1x, p1y) = L1_PASSOS[0], L1_PASSOS[1]
-            if math.hypot(e["som"].x - p0x, e["som"].y - p0y) > 1.0 or math.hypot(d.x - (p1x - p0x), d.y - (p1y - p0y)) > 1.0:
-                falhas.append("EV_L1_PassosPesados: som fora do caminho do vulto (PontoSom/DeslocPorRep != L1_PASSOS)")
+        falhas += regras_som_l1(e)
         if e["label"] == "EV_L1_VultoParado" and math.hypot(e["som"].x - L1_VAO[0][0], e["som"].y - L1_VAO[0][1]) > 1.0:
             falhas.append("EV_L1_VultoParado: alvo do olhar fora do vulto (PontoSom != L1_VAO[0])")
     for L in range(1, 6):
