@@ -4,7 +4,7 @@ Este é o projeto Unreal; a memória e os scripts oficiais estão no [vault Cere
 
 ## Papéis vigentes desde 26/10/2026
 
-Somente sccar (Sccar, gpt-6.1-terra/xhigh), hunter (Hunter, gpt-6.1-sol/xhigh), golden (Golden, gpt-6.1-sol/medium) e rattao (Rattão, gpt-6.1-sol/medium). A política aplica-se ao desenvolvimento Unreal e à infraestrutura/configuração/documentação/memória desse domínio.
+Somente sccar (Sccar, gpt-6.1-terra/xhigh), hunter (Hunter, gpt-6.1-sol/high), golden (Golden, gpt-6.1-sol/medium) e rattao (Rattão, gpt-6.1-sol/medium). A política aplica-se ao desenvolvimento Unreal e à infraestrutura/configuração/documentação/memória desse domínio.
 
 Rattão é a sessão principal: coordena e audita contratos, diffs e logs, **sem criar, editar, mover, apagar ou salvar arquivo algum**, inclusive notas/memória e ações de editor/PIE com escrita. Implementação é delegada exclusivamente ao domínio: Sccar para Blueprint de conteúdo/UI/animação/materiais/VFX/ponte C++; Hunter para núcleo e sistemas, mesmo em Blueprint, testes e infraestrutura; Golden para ambientes/layout/luz. Especialistas mantêm as notas atribuídas do próprio domínio. Golden é consulta obrigatória antes da aprovação visual. Máximo de principal + três filhos, sem exigir todos por pedido.
 
